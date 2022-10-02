@@ -1,5 +1,5 @@
 # Hikari-LLVM15
- A fork of HikariObfuscator.
+ A fork of HikariObfuscator [WIP]
  
  ## 原项目链接
  [https://github.com/HikariObfuscator/Hikari](https://github.com/HikariObfuscator/Hikari)
@@ -140,7 +140,7 @@ AntiDebugging PreCompiled IR文件的路径
 
 启用Flattening。默认关闭
 
-#### Substitution
+#### Substitution (修改过)
 
 -enable-subobf
 
@@ -152,7 +152,11 @@ Substitution在每个函数混淆的次数。默认为1
 
 -sub_prob
 
-每个基本块被Substitution混淆的概率。默认为50
+每个指令被Substitution混淆的概率。默认为50
+
+-sub_const2gv
+
+将数字常量替换为全局变量，以对抗反编译器自动简化表达式
 
 #### IndirectBranch (修改过)
 
@@ -181,7 +185,3 @@ Substitution在每个函数混淆的次数。默认为1
 -fw_times
 
 FunctionWrapper在每个函数调用混淆的次数。默认为2
-
-## 移植过程
-
-暂无
