@@ -156,7 +156,7 @@ Substitution在每个函数混淆的次数。默认为1
 
 -sub_const2gv
 
-将数字常量替换为全局变量，以对抗反编译器自动简化表达式
+将数字常量替换为全局变量，以对抗反编译器自动简化表达式。默认关闭
 
 #### IndirectBranch (修改过)
 
@@ -166,11 +166,11 @@ Substitution在每个函数混淆的次数。默认为1
 
 -indibran-use-stack
 
-将跳转表地址和索引加载到栈中，再从栈中读取
+将跳转表地址和索引加载到栈中，再从栈中读取。默认关闭
 
 -indibran-enc-jump-target
 
-加密跳转表和索引
+加密跳转表和索引。默认关闭
 
 #### FunctionWrapper
 
