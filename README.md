@@ -155,9 +155,29 @@ Substitution在每个函数混淆的次数。默认为1
 
 每个指令被Substitution混淆的概率。默认为50
 
--sub_const2gv
+#### ConstantEncryption (修改过)
+
+修改自https://iosre.com/t/llvm-llvm/11132
+
+-enable-constenc
+
+启用ConstantEncryption。默认关闭
+
+-constenc_times
+
+ConstantEncryption在每个函数混淆的次数。默认为1
+
+-constenc_prob
+
+每个指令被ConstantEncryption混淆的概率。默认为50
+
+-constenc_togv
 
 将数字常量替换为全局变量，以对抗反编译器自动简化表达式。默认关闭
+
+-constenc_subxor
+
+替换ConstantEncryption的XOR运算，使其变得更加复杂
 
 #### IndirectBranch (修改过)
 
