@@ -40,6 +40,7 @@
 #include "llvm/Transforms/Scalar/SimpleLoopUnswitch.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Vectorize.h"
+#include "llvm/Transforms/Obfuscation/Obfuscation.h"
 
 using namespace llvm;
 
@@ -575,6 +576,8 @@ void PassManagerBuilder::addVectorPasses(legacy::PassManagerBase &PM,
 
 void PassManagerBuilder::populateModulePassManager(
     legacy::PassManagerBase &MPM) {
+  MPM.add(createObfuscationLegacyPass());
+
   MPM.add(createAnnotation2MetadataLegacyPass());
 
   // Allow forcing function attributes as a debugging and tuning aid.
