@@ -6,9 +6,6 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Obfuscation/Utils.h"
-#if LLVM_VERSION_MAJOR >= 15
-#include "llvm/IR/Constants.h"
-#endif
 
 #define DEBUG_TYPE "substitution"
 
