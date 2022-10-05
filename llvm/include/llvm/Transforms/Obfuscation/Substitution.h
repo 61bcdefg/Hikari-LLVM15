@@ -24,6 +24,9 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Obfuscation/CryptoUtils.h"
+#if LLVM_VERSION_MAJOR >= 15
+#include "llvm/IR/Constants.h"
+#endif
 
 // Namespace
 using namespace llvm;
