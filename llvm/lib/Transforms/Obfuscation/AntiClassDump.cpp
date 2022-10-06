@@ -167,7 +167,22 @@ struct AntiClassDump : public ModulePass {
         ConstantExpr *methodListCE = OpaquePointersEnabled ? nullptr : cast<ConstantExpr>(tmp);
         // Note:methodListCE is also a BitCastConstantExpr
         GlobalVariable *methodListGV =
-            cast<GlobalVariable>(OpaquePointersEnabled ? tmp : methodListCE->getOperand(0));
+            HasPtrauth
+                ? OpaquePointersEnabled
+                      ? cast<GlobalVariable>(
+                            cast<GlobalVariable>(tmp)
+                                ->getInitializer()
+                                ->getOperand(0))
+                      : cast<GlobalVariable>(
+                            cast<ConstantExpr>(
+                                cast<GlobalVariable>(
+                                    methodListCE->getOperand(0))
+                                    ->getInitializer()
+                                    ->getOperand(0))
+                                ->getOperand(0))
+                : cast<GlobalVariable>(OpaquePointersEnabled
+                                           ? tmp
+                                           : methodListCE->getOperand(0));
         // Now BitCast is stripped out.
         assert(methodListGV->hasInitializer() &&
                "MethodListGV doesn't have initializer");
@@ -199,10 +214,61 @@ struct AntiClassDump : public ModulePass {
     //   IMP *vtable;
     //   struct class_ro_t *ro;
     // }
-    GlobalVariable *metaclassGV = HasPtrauth ? OpaquePointersEnabled ? cast<GlobalVariable>(cast<GlobalVariable>(CS->getOperand(0))->getInitializer()->getOperand(0)) : cast<GlobalVariable>(cast<ConstantExpr>(cast<GlobalVariable>(cast<ConstantExpr>(CS->getOperand(0))->getOperand(0))->getInitializer()->getOperand(0))->getOperand(0)) : cast<GlobalVariable>(CS->getOperand(0));
-    GlobalVariable *class_ro = cast<GlobalVariable>(CS->getOperand(4));
+    GlobalVariable *metaclassGV =
+        HasPtrauth
+            ? OpaquePointersEnabled
+                  ? cast<GlobalVariable>(cast<GlobalVariable>(CS->getOperand(0))
+                                             ->getInitializer()
+                                             ->getOperand(0))
+                  : cast<GlobalVariable>(
+                        cast<ConstantExpr>(
+                            cast<GlobalVariable>(
+                                cast<ConstantExpr>(CS->getOperand(0))
+                                    ->getOperand(0))
+                                ->getInitializer()
+                                ->getOperand(0))
+                            ->getOperand(0))
+            : cast<GlobalVariable>(CS->getOperand(0));
+    GlobalVariable *class_ro =
+        cast<GlobalVariable>(
+            HasPtrauth
+                ? OpaquePointersEnabled
+                      ? cast<GlobalVariable>(
+                            CS->getOperand(4))
+                            ->getInitializer()
+                            ->getOperand(0)
+                      : cast<ConstantExpr>(
+                            cast<GlobalVariable>(
+                                cast<ConstantExpr>(
+                                    CS->getOperand(4))
+                                    ->getOperand(0))
+                                ->getInitializer()
+                                ->getOperand(0))
+                            ->getOperand(0)
+                : CS->getOperand(4));
     assert(metaclassGV->hasInitializer() && "MetaClass GV Initializer Missing");
-    GlobalVariable *metaclass_ro = cast<GlobalVariable>(metaclassGV->getInitializer()->getOperand(metaclassGV->getInitializer()->getNumOperands() - 1));
+    GlobalVariable *metaclass_ro = cast<GlobalVariable>(
+        HasPtrauth
+            ? OpaquePointersEnabled
+                  ? cast<GlobalVariable>(
+                        metaclassGV->getInitializer()->getOperand(
+                            metaclassGV->getInitializer()->getNumOperands() -
+                            1))
+                        ->getInitializer()
+                        ->getOperand(0)
+                  : cast<ConstantExpr>(
+                        cast<GlobalVariable>(
+                            cast<ConstantExpr>(
+                                metaclassGV->getInitializer()->getOperand(
+                                    metaclassGV->getInitializer()
+                                        ->getNumOperands() -
+                                    1))
+                                ->getOperand(0))
+                            ->getInitializer()
+                            ->getOperand(0))
+                        ->getOperand(0)
+            : metaclassGV->getInitializer()->getOperand(
+                  metaclassGV->getInitializer()->getNumOperands() - 1));
     // Begin IRBuilder Initializing
     map<string, Value *> Info = splitclass_ro_t(
         cast<ConstantStruct>(metaclass_ro->getInitializer()), M);
@@ -223,8 +289,15 @@ struct AntiClassDump : public ModulePass {
         StringRef selname = SELNameCDS->getAsCString();
         if ((selname == "initialize" && UseInitialize) ||
             (selname == "load" && !UseInitialize)) {
-          Function *IMPFunc =
-              cast<Function>(HasPtrauth ? OpaquePointersEnabled ? cast<GlobalVariable>(methodStruct->getOperand(2))->getInitializer()->getOperand(0) : cast<ConstantExpr>(cast<GlobalVariable>(cast<ConstantExpr>(methodStruct->getOperand(2))->getOperand(0))->getInitializer()->getOperand(0))->getOperand(0)->getOperand(0) : OpaquePointersEnabled ? methodStruct->getOperand(2) : methodStruct->getOperand(2)->getOperand(0));
+          Function *IMPFunc = cast<Function>(HasPtrauth ? OpaquePointersEnabled
+                        ? cast<GlobalVariable>(methodStruct->getOperand(2))
+                              ->getInitializer()->getOperand(0)
+                        : cast<ConstantExpr>(
+                              cast<GlobalVariable>(
+                                  methodStruct->getOperand(2)->getOperand(0))
+                                  ->getInitializer()->getOperand(0))->getOperand(0)
+              : OpaquePointersEnabled ? methodStruct->getOperand(2)
+                               : methodStruct->getOperand(2)->getOperand(0));
           errs() << "Found Existing initializer\n";
           EntryBB = &(IMPFunc->getEntryBlock());
         }
@@ -457,7 +530,14 @@ struct AntiClassDump : public ModulePass {
           IRB->CreateCall(class_replaceMethod,
                           ArrayRef<Value *>(replaceMethodArgs));
           if (RenameMethodIMP) {
-            Function *MethodIMP = dyn_cast<Function>(HasPtrauth ? OpaquePointersEnabled ? cast<GlobalVariable>(methodStruct->getOperand(2))->getInitializer()->getOperand(0) : cast<ConstantExpr>(cast<GlobalVariable>(methodStruct->getOperand(2))->getInitializer()->getOperand(0))->getOperand(0) : OpaquePointersEnabled ? methodStruct->getOperand(2) : cast<ConstantExpr>(methodStruct->getOperand(2))->getOperand(0));
+            Function *MethodIMP = cast<Function>(HasPtrauth ? OpaquePointersEnabled
+                          ? cast<GlobalVariable>(methodStruct->getOperand(2))
+                                ->getInitializer()->getOperand(0)
+                          : cast<ConstantExpr>(cast<GlobalVariable>(
+                                    methodStruct->getOperand(2)->getOperand(0))
+                                    ->getInitializer()->getOperand(0))->getOperand(0)
+                : OpaquePointersEnabled ? methodStruct->getOperand(2)
+                                 : methodStruct->getOperand(2)->getOperand(0));
             MethodIMP->setName("ACDMethodIMP");
           }
         }
