@@ -143,15 +143,15 @@ struct Obfuscation : public ModulePass {
         delete P;
       }
     errs() << "Doing Post-Run Cleanup\n";
+    MP = createConstantEncryptionPass(EnableConstantEncryption);
+    MP->runOnModule(M);
+    delete MP;
     FunctionPass *P = createIndirectBranchPass(EnableAllObfuscation ||
                                                EnableIndirectBranching);
     for (Function &F : M)
       if (!F.isDeclaration())
         P->runOnFunction(F);
     delete P;
-    MP = createConstantEncryptionPass(EnableConstantEncryption);
-    MP->runOnModule(M);
-    delete MP;
     MP = createFunctionWrapperPass(EnableAllObfuscation ||
                                    EnableFunctionWrapper);
     MP->runOnModule(M);

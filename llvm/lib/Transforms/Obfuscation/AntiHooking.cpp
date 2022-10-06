@@ -57,13 +57,13 @@ namespace llvm {
 struct AntiHook : public ModulePass {
   static char ID;
   bool flag;
-  bool initialized;
   bool opaquepointers;
   bool appleptrauth;
-  AntiHook() : ModulePass(ID) { this->flag = true;this->initialized=false;}
-  AntiHook(bool flag) : ModulePass(ID) { this->flag = flag;this->initialized=false;}
+  bool hasobjcmethod;
+  AntiHook() : ModulePass(ID) { this->flag = true; }
+  AntiHook(bool flag) : ModulePass(ID) { this->flag = flag; }
   StringRef getPassName() const override { return "AntiHook"; }
-  bool Initialize(Module &M){
+  bool doInitialization(Module &M) override {
     if (PreCompiledIRPath == "") {
       SmallString<32> Path;
       if (sys::path::home_directory(Path)) { // Stolen from LineEditor.cpp
@@ -92,39 +92,40 @@ struct AntiHook : public ModulePass {
     appleptrauth = M.getModuleFlag("ptrauth.abi-version");
 
     if (Triple(M.getTargetTriple()).getVendor() == Triple::VendorType::Apple) {
-      bool hasobjcmethod = false;
       for (GlobalVariable &GV : M.globals()) {
         if (GV.hasName() && GV.hasInitializer() &&
             (GV.getName().startswith("_OBJC_$_INSTANCE_METHODS") ||
              GV.getName().startswith("_OBJC_$_CLASS_METHODS"))) {
-          hasobjcmethod = true;
+          this->hasobjcmethod = true;
           break;
         }
       }
-      if (!hasobjcmethod)
-        return true;
-      Type *Int8PtrTy = Type::getInt8PtrTy(M.getContext());
-      M.getOrInsertFunction("objc_getClass",
-                            FunctionType::get(Int8PtrTy, {Int8PtrTy}, false));
-      M.getOrInsertFunction("sel_registerName",
-                            FunctionType::get(Int8PtrTy, {Int8PtrTy}, false));
-      FunctionType *IMPType =
-          FunctionType::get(Int8PtrTy, {Int8PtrTy, Int8PtrTy}, true);
-      PointerType *IMPPointerType = PointerType::getUnqual(IMPType);
-      M.getOrInsertFunction("method_getImplementation", FunctionType::get(IMPPointerType,
-              {PointerType::getUnqual(StructType::getTypeByName(
-                                                                              M.getContext(), "struct._objc_method"))},
-              false));
-      M.getOrInsertFunction("class_getInstanceMethod",
-          FunctionType::get(
-              PointerType::getUnqual(StructType::getTypeByName(
-                                    M.getContext(), "struct._objc_method")),
-              {Int8PtrTy, Int8PtrTy}, false));
-      M.getOrInsertFunction("class_getClassMethod",
-          FunctionType::get(
-              PointerType::getUnqual(StructType::getTypeByName(
-                                    M.getContext(), "struct._objc_method")),
-              {Int8PtrTy, Int8PtrTy}, false));
+      if (this->hasobjcmethod) {
+        Type *Int8PtrTy = Type::getInt8PtrTy(M.getContext());
+        M.getOrInsertFunction("objc_getClass",
+                              FunctionType::get(Int8PtrTy, {Int8PtrTy}, false));
+        M.getOrInsertFunction("sel_registerName",
+                              FunctionType::get(Int8PtrTy, {Int8PtrTy}, false));
+        FunctionType *IMPType =
+            FunctionType::get(Int8PtrTy, {Int8PtrTy, Int8PtrTy}, true);
+        PointerType *IMPPointerType = PointerType::getUnqual(IMPType);
+        M.getOrInsertFunction(
+            "method_getImplementation",
+            FunctionType::get(IMPPointerType,
+                              {PointerType::getUnqual(StructType::getTypeByName(
+                                  M.getContext(), "struct._objc_method"))},
+                              false));
+        M.getOrInsertFunction(
+            "class_getInstanceMethod",
+            FunctionType::get(PointerType::getUnqual(StructType::getTypeByName(
+                                  M.getContext(), "struct._objc_method")),
+                              {Int8PtrTy, Int8PtrTy}, false));
+        M.getOrInsertFunction(
+            "class_getClassMethod",
+            FunctionType::get(PointerType::getUnqual(StructType::getTypeByName(
+                                  M.getContext(), "struct._objc_method")),
+                              {Int8PtrTy, Int8PtrTy}, false));
+      }
     }
     return true;
   }
@@ -134,10 +135,6 @@ struct AntiHook : public ModulePass {
     for (Function &F : M) {
       if (toObfuscate(flag, &F, "antihook")) {
         errs() << "Running AntiHooking On " << F.getName() << "\n";
-        if (!this->initialized) {
-          Initialize(M);
-          this->initialized = true;
-        }
         if (Tri.isAArch64()) {
           vector<Function *> calledFunctions;
           calledFunctions.emplace_back(&F);
@@ -145,14 +142,14 @@ struct AntiHook : public ModulePass {
         }
       }
     }
-    if (Tri.getVendor() == Triple::VendorType::Apple) {
+    if (this->hasobjcmethod) {
       for (GlobalVariable &GV : M.globals()) {
         if (GV.hasName() && GV.hasInitializer() &&
+            GV.getSection() != "llvm.ptrauth" &&
             (GV.getName().startswith("_OBJC_$_INSTANCE_METHODS") ||
              GV.getName().startswith("_OBJC_$_CLASS_METHODS"))) {
-          ConstantExpr *methodListCE = opaquepointers ? nullptr : cast<ConstantExpr>(&GV);
-          GlobalVariable *methodListGV = opaquepointers ? &GV : cast<GlobalVariable>(methodListCE->getOperand(0));
-          ConstantStruct *methodListStruct = cast<ConstantStruct>(methodListGV);
+          GlobalVariable *methodListGV = &GV;
+          ConstantStruct *methodListStruct = cast<ConstantStruct>(methodListGV->getInitializer());
           ConstantArray *method_list =
               cast<ConstantArray>(methodListStruct->getOperand(2));
           for (unsigned i = 0; i < method_list->getNumOperands(); i++) {
@@ -166,14 +163,12 @@ struct AntiHook : public ModulePass {
             string classname = GV.getName().substr(strlen(classmethod ? "_OBJC_$_CLASS_METHODS_"
                                                : "_OBJC_$_INSTANCE_METHODS_")).str();
             string selname = SELNameCDS->getAsCString().str();
-            Function *IMPFunc = cast<Function>(appleptrauth ? opaquepointers ? cast<GlobalVariable>(methodStruct->getOperand(2))
+            Function *IMPFunc = cast<Function>(appleptrauth ? opaquepointers
+                          ? cast<GlobalVariable>(methodStruct->getOperand(2))
                                 ->getInitializer()->getOperand(0)
-                          : cast<ConstantExpr>(cast<GlobalVariable>(
-                                    cast<ConstantExpr>(methodStruct->getOperand(2))
-                                        ->getOperand(0))->getInitializer()->getOperand(0))
-                                ->getOperand(0)->getOperand(0)
-                : opaquepointers ? methodStruct->getOperand(2)
-                                 : methodStruct->getOperand(2)->getOperand(0));
+                          : cast<ConstantExpr>(cast<GlobalVariable>(methodStruct->getOperand(2)->getOperand(0))
+                                                   ->getInitializer()->getOperand(0))->getOperand(0)
+                    : opaquepointers ? methodStruct->getOperand(2) : methodStruct->getOperand(2)->getOperand(0));
             if (!toObfuscate(flag, IMPFunc, "antihook"))
               continue;
             HandleObjcRuntimeHook(IMPFunc, classname, selname, classmethod);

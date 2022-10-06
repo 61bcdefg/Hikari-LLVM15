@@ -21,6 +21,9 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Value.h"
+#if LLVM_VERSION_MAJOR >= 15
+#include "llvm/IR/IntrinsicInst.h"
+#endif
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Obfuscation/Obfuscation.h"
 #include "llvm/Transforms/Obfuscation/SubstituteImpl.h"

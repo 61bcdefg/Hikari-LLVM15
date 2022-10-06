@@ -123,9 +123,6 @@ struct CaseCmp {
 
 char LegacyLowerSwitch::ID = 0;
 
-// Publicly exposed interface to pass...
-char &llvm::LowerSwitchID = LegacyLowerSwitch::ID;
-
 // createLowerSwitchPass - Interface to this file...
 FunctionPass *llvm::createLegacyLowerSwitchPass() { return new LegacyLowerSwitch(); }
 
