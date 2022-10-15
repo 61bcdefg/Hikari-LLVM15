@@ -50,6 +50,10 @@ static cl::opt<string>
                       cl::desc("External Path Pointing To Pre-compiled Anti "
                                "Hooking Handler IR.See Wiki"),
                       cl::value_desc("filename"), cl::init(""));
+static cl::opt<bool> AntiRebindSymbol("ah_antirebind",
+                  cl::desc("Make fishhook unavailable"),
+                  cl::value_desc("unavailable fishhook"), cl::init(false),
+                  cl::Optional);
 
 using namespace llvm;
 using namespace std;
@@ -140,6 +144,31 @@ struct AntiHook : public ModulePass {
           calledFunctions.emplace_back(&F);
           HandleInlineHookAArch64(&F, calledFunctions);
         }
+        if (AntiRebindSymbol)
+          for (Instruction &I : instructions(F))
+            if (isa<CallInst>(&I) || isa<InvokeInst>(&I)) {
+              CallSite CS(&I);
+              Function *Called = CS.getCalledFunction();
+              if (!Called)
+                Called = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts());
+              if (Called && Called->isDeclaration() &&
+                  Called->isExternalLinkage(Called->getLinkage()) &&
+                  !Called->isIntrinsic() &&
+                  !Called->getName().startswith("clang.")) {
+                GlobalVariable *GV = cast<GlobalVariable>(M.getOrInsertGlobal(
+                    ("AntiRebindSymbol_" + Called->getName()).str(),
+                    Called->getType()));
+                if (!GV->hasInitializer()) {
+                  GV->setConstant(true); // make the gv not writable
+                  GV->setInitializer(Called);
+                  GV->setLinkage(GlobalValue::LinkageTypes::PrivateLinkage);
+                }
+                appendToCompilerUsed(M, {GV});
+                Value *Load = new LoadInst(GV->getValueType(), GV, Called->getName(), &I);
+                Value *BitCasted = BitCastInst::CreateBitOrPointerCast(Load, CS.getCalledValue()->getType(), "", &I);
+                CS.setCalledFunction(BitCasted);
+              }
+            }
       }
     }
     if (this->hasobjcmethod) {
@@ -176,7 +205,6 @@ struct AntiHook : public ModulePass {
         }
       }
     }
-    // TODO: Make fishhook unavailable
     return true;
   } // End runOnFunction
   void HandleInlineHookAArch64(Function *F, vector<Function *> &FunctionsToDetect) {
