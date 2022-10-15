@@ -52,11 +52,10 @@ namespace llvm {
 struct AntiDebugging : public ModulePass {
   static char ID;
   bool flag;
-  bool initialized;
-  AntiDebugging() : ModulePass(ID) { this->flag = true;this->initialized=false;}
-  AntiDebugging(bool flag) : ModulePass(ID) { this->flag = flag;this->initialized=false;}
+  AntiDebugging() : ModulePass(ID) { this->flag = true; }
+  AntiDebugging(bool flag) : ModulePass(ID) { this->flag = flag; }
   StringRef getPassName() const override { return "AntiDebugging"; }
-  bool Initialize(Module &M){
+  bool doInitialization(Module &M) override {
     if (PreCompiledIRPath == "") {
       SmallString<32> Path;
       if (sys::path::home_directory(Path)) { // Stolen from LineEditor.cpp
@@ -124,10 +123,6 @@ struct AntiDebugging : public ModulePass {
     return true;
   }
   bool runOnFunction(Function &F) {
-    if (!this->initialized){
-      Initialize(*F.getParent());
-      this->initialized = true;
-    }
     BasicBlock *EntryBlock = &(F.getEntryBlock());
     // Now operate on Linked AntiDBGCallbacks
     Function *ADBCallBack = F.getParent()->getFunction("ADBCallBack");

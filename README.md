@@ -10,7 +10,7 @@
 
 ### Swift混淆支持
 
-编译Swift Toolchain的时间非常长。建议使用[Hanabi](https://github.com/NeHyci/Hanabi)
+编译Swift Toolchain的时间非常长。可以使用[Hanabi](https://github.com/NeHyci/Hanabi)
 
 需要注意的是添加混淆参数的位置是在**Swift Compiler - Other Flags**中的**Other Swift Flags**，并且是在前面加-Xllvm，而不是-mllvm。
 关闭优化的地方在**Swift Compiler - Code Generation**中的**Optimization Level**，设置为 *No Optimization [-Onone]*
@@ -62,6 +62,10 @@ InlineHook检测目前只支持ARM64平台。自动在函数中插入代码检�
 -enable-antihook
 
 启用AntiHooking。默认关闭
+
+-ah_antirebind
+
+使生成的文件无法被fishhook重绑定符号
 
 -adhexrirpath
 

@@ -122,11 +122,13 @@ struct ConstantEncryption : public ModulePass {
     GVPtr->setInitializer(newGVInit);
     for (User *U : GVPtr->users()) {
       if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
-        Instruction *XORInst =
+        BinaryOperator *XORInst =
             BinaryOperator::Create(Instruction::Xor, LI, XORKey);
         XORInst->insertAfter(LI);
         LI->replaceAllUsesWith(XORInst);
         XORInst->setOperand(0, LI);
+        if (SubstituteXor)
+          substituteXor(XORInst);
       } else if (StoreInst *SI = dyn_cast<StoreInst>(U)) {
         BinaryOperator *XORInst = BinaryOperator::Create(
             Instruction::Xor, SI->getOperand(0), XORKey);
