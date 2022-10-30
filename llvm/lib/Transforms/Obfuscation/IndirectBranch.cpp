@@ -146,9 +146,9 @@ struct IndirectBranch : public FunctionPass {
           LI = IRB.CreateGEP(Type::getInt8Ty(Func.getContext()), IRB.CreateLoad(Type::getInt8PtrTy(Func.getContext()),
                              IRB.CreateLoad(AI3->getAllocatedType(), AI3)), IRB.CreateSub(ConstantInt::get(Type::getInt32Ty(Func.getContext()), 0), enckeyLoad), "IndirectBranchingTargetAddress");
           if (!BI->isConditional() && isa<BinaryOperator>(RealIndex))
-            substituteXor(dyn_cast<BinaryOperator>(RealIndex));
+            SubstituteImpl::substituteXor(dyn_cast<BinaryOperator>(RealIndex));
           if (isa<BinaryOperator>(enckeyLoad))
-            substituteXor(dyn_cast<BinaryOperator>(enckeyLoad));
+            SubstituteImpl::substituteXor(dyn_cast<BinaryOperator>(enckeyLoad));
         }
         IndirectBrInst *indirBr = IndirectBrInst::Create(LI, BBs.size());
         for (BasicBlock *BB : BBs)
@@ -162,9 +162,9 @@ struct IndirectBranch : public FunctionPass {
           Value *enckeyLoad = IRB.CreateXor(IRB.CreateLoad(enckeyGV->getValueType(), enckeyGV), encenckey);
           LI = IRB.CreateGEP(Type::getInt8Ty(Func.getContext()), IRB.CreateLoad(Type::getInt8PtrTy(Func.getContext()), GEP), IRB.CreateSub(ConstantInt::get(Type::getInt32Ty(Func.getContext()), 0), enckeyLoad), "IndirectBranchingTargetAddress");
           if (!BI->isConditional() && isa<BinaryOperator>(RealIndex))
-            substituteXor(dyn_cast<BinaryOperator>(RealIndex));
+            SubstituteImpl::substituteXor(dyn_cast<BinaryOperator>(RealIndex));
           if (isa<BinaryOperator>(enckeyLoad))
-            substituteXor(dyn_cast<BinaryOperator>(enckeyLoad));
+            SubstituteImpl::substituteXor(dyn_cast<BinaryOperator>(enckeyLoad));
         }
         IndirectBrInst *indirBr = IndirectBrInst::Create(LI, BBs.size());
         for (BasicBlock *BB : BBs)
