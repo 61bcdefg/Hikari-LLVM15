@@ -81,17 +81,17 @@ bool Substitution::substitute(Function *f) {
         switch (inst.getOpcode()) {
         case BinaryOperator::Add:
           // case BinaryOperator::FAdd:
-          substituteAdd(cast<BinaryOperator>(&inst));
+          SubstituteImpl::substituteAdd(cast<BinaryOperator>(&inst));
           ++Add;
           break;
         case BinaryOperator::Sub:
           // case BinaryOperator::FSub:
-          substituteSub(cast<BinaryOperator>(&inst));
+          SubstituteImpl::substituteSub(cast<BinaryOperator>(&inst));
           ++Sub;
           break;
         case BinaryOperator::Mul:
           // case BinaryOperator::FMul:
-          substituteMul(cast<BinaryOperator>(&inst));
+          SubstituteImpl::substituteMul(cast<BinaryOperator>(&inst));
           ++Mul;
           break;
         case BinaryOperator::UDiv:
@@ -114,15 +114,15 @@ bool Substitution::substitute(Function *f) {
           //++Shi;
           break;
         case Instruction::And:
-          substituteAnd(cast<BinaryOperator>(&inst));
+          SubstituteImpl::substituteAnd(cast<BinaryOperator>(&inst));
           ++And;
           break;
         case Instruction::Or:
-          substituteOr(cast<BinaryOperator>(&inst));
+          SubstituteImpl::substituteOr(cast<BinaryOperator>(&inst));
           ++Or;
           break;
         case Instruction::Xor:
-          substituteXor(cast<BinaryOperator>(&inst));
+          SubstituteImpl::substituteXor(cast<BinaryOperator>(&inst));
           ++Xor;
           break;
         default:

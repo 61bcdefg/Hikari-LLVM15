@@ -124,7 +124,7 @@ static cl::opt<int> ConditionExpressionComplexity(
 
 static cl::opt<bool> JunkAssembly(
     "bcf_junkasm",
-    cl::desc("Whether to add spam assembly"),
+    cl::desc("Whether to add junk assembly to altered basic block"),
     cl::value_desc("add junk assembly"), cl::init(false), cl::Optional);
 static cl::opt<int> MaxNumberOfJunkAssembly(
     "bcf_junkasm_maxnum",

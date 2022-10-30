@@ -128,14 +128,14 @@ struct ConstantEncryption : public ModulePass {
         LI->replaceAllUsesWith(XORInst);
         XORInst->setOperand(0, LI);
         if (SubstituteXor)
-          substituteXor(XORInst);
+          SubstituteImpl::substituteXor(XORInst);
       } else if (StoreInst *SI = dyn_cast<StoreInst>(U)) {
         BinaryOperator *XORInst = BinaryOperator::Create(
             Instruction::Xor, SI->getOperand(0), XORKey);
         XORInst->insertAfter(SI);
         SI->replaceUsesOfWith(SI->getOperand(0), XORInst);
         if (SubstituteXor)
-          substituteXor(XORInst);
+          SubstituteImpl::substituteXor(XORInst);
       }
     }
   }
@@ -149,7 +149,7 @@ struct ConstantEncryption : public ModulePass {
                       Key, "", I);
     I->setOperand(opindex, NewOperand);
     if (SubstituteXor)
-      substituteXor(NewOperand);
+      SubstituteImpl::substituteXor(NewOperand);
   }
 
   pair<ConstantInt * /*key*/, ConstantInt * /*new*/> PairConstantInt(ConstantInt *C) {
