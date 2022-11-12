@@ -154,7 +154,7 @@ bool Flattening::flatten(Function *f) {
   for (BasicBlock *i : origBB) {
     ConstantInt *numCase = NULL;
 
-    if (isa<InvokeInst>(i->getTerminator())) {
+    if (i->getTerminator()->getOpcode() == Instruction::Invoke) {
       // Get next case
       numCase = switchI->findCaseDest(i->getTerminator()->getSuccessor(0));
       // If next case == default case (switchDefault)

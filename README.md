@@ -95,7 +95,7 @@ AntiDebugging PreCompiled IR文件的路径
 
 -strcry-encrypt-global-string
 
-如果发现原Hikari字符串加密无法处理的字符串，就插入函数到llvm.global_ctors来解密，存在缺陷，可能会在未来修改一下。默认关闭
+如果发现当前字符串加密无法处理的字符串，就插入函数到llvm.global_ctors来解密。默认关闭
 
 #### SplitBasicBlocks
 
