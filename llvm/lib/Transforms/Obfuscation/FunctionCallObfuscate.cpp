@@ -64,7 +64,7 @@ struct FunctionCallObfuscate : public FunctionPass {
              << "\n";
       infile >> this->Configuration;
     } else {
-      errs() << "Failed To Loading Symbol Configuration From:"
+      errs() << "Failed To Load Symbol Configuration From:"
              << SymbolConfigPath << "\n";
     }
     Triple tri(M.getTargetTriple());

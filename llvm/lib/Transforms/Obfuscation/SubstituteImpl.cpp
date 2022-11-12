@@ -1,5 +1,7 @@
 //===----------------------------------------------------------------------===//
 
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/NoFolder.h"
 #include "llvm/Transforms/Obfuscation/SubstituteImpl.h"
 
 #define NUMBER_ADD_SUBST 7

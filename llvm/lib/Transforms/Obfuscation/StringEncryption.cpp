@@ -43,10 +43,10 @@ struct StringEncryption : public ModulePass {
     for (Function &F : M) {
       if (toObfuscate(flag, &F, "strenc")) {
         errs() << "Running StringEncryption On " << F.getName() << "\n";
-        Constant *S = ConstantInt::get(Type::getInt32Ty(M.getContext()), 0);
+        Constant *S = ConstantInt::getNullValue(Type::getInt32Ty(M.getContext()));
         GlobalVariable *GV = new GlobalVariable(
             M, S->getType(), false, GlobalValue::LinkageTypes::PrivateLinkage,
-            S, "");
+            S, "StringEncryptionEncStatus");
         encstatus[&F] = GV;
         HandleFunction(&F);
       }
@@ -57,7 +57,7 @@ struct StringEncryption : public ModulePass {
   } // End runOnModule
   void HandleFunction(Function *Func) {
     FixFunctionConstantExpr(Func);
-    set<GlobalVariable *> Globals;
+    vector<GlobalVariable *> Globals;
     set<User *> Users;
     for (Instruction &I : instructions(Func))
       for (Value *Op : I.operands())
@@ -65,29 +65,78 @@ struct StringEncryption : public ModulePass {
           if (User *U = dyn_cast<User>(Op))
             Users.insert(U);
           Users.insert(&I);
-          Globals.insert(G);
+          Globals.emplace_back(G);
         }
     set<GlobalVariable *> rawStrings;
     set<GlobalVariable *> objCStrings;
     map<GlobalVariable *, pair<Constant *, GlobalVariable *>> GV2Keys;
     map<GlobalVariable * /*old*/, pair<GlobalVariable * /*encrypted*/, GlobalVariable * /*decrypt space*/>> old2new;
-    for (GlobalVariable *GV : Globals)
-      if (GV->hasInitializer() &&
-          GV->getSection() != "llvm.metadata" &&
-          !GV->getSection().contains("__objc") &&
-          !GV->getName().contains("OBJC")) {
-        if (GV->getInitializer()->getType() ==
-            StructType::getTypeByName(Func->getParent()->getContext(),
-                                      "struct.__NSConstantString_tag")) {
-          objCStrings.insert(GV);
-          rawStrings.insert(
-              cast<GlobalVariable>(cast<ConstantStruct>(GV->getInitializer())
-                                       ->getOperand(2)
-                                       ->stripPointerCasts()));
-
-        } else if (isa<ConstantDataSequential>(GV->getInitializer()))
-          rawStrings.insert(GV);
+    while (Globals.size()) { //
+      std::vector<GlobalVariable *>::iterator GVIter = Globals.begin();
+      for (; GVIter != Globals.end(); ) {
+        bool breakThisFor = false;
+        GlobalVariable *GV = *GVIter;
+        if (GV->hasInitializer() && GV->getSection() != "llvm.metadata" &&
+            !(GV->getSection().contains("__objc") &&
+              !GV->getSection().contains("array")) &&
+            !GV->getName().contains("OBJC")) {
+          if (GV->getInitializer()->getType() ==
+              StructType::getTypeByName(Func->getParent()->getContext(),
+                                        "struct.__NSConstantString_tag")) {
+            objCStrings.insert(GV);
+            rawStrings.insert(
+                cast<GlobalVariable>(cast<ConstantStruct>(GV->getInitializer())
+                                         ->getOperand(2)
+                                         ->stripPointerCasts()));
+          } else if (isa<ConstantDataSequential>(GV->getInitializer())) {
+            rawStrings.insert(GV);
+          } else if (isa<ConstantStruct>(GV->getInitializer())) {
+            ConstantStruct *CS = cast<ConstantStruct>(GV->getInitializer());
+            for (unsigned i = 0; i < CS->getNumOperands(); i++) {
+              Constant *Op = CS->getOperand(i);
+              if (GlobalVariable *OpGV =
+                      dyn_cast<GlobalVariable>(Op->stripPointerCasts())) {
+                if (!(OpGV->hasInitializer() &&
+                      OpGV->getSection() != "llvm.metadata" &&
+                      !(OpGV->getSection().contains("__objc") &&
+                        !OpGV->getSection().contains("array")) &&
+                      !OpGV->getName().contains("OBJC")))
+                  continue;
+                Users.insert(Op);
+                if (std::find(Globals.begin(), Globals.end(), OpGV) ==
+                    Globals.end()) {
+                  Globals.emplace_back(OpGV);
+                  breakThisFor = true;
+                }
+              }
+            }
+          } else if (isa<ConstantArray>(GV->getInitializer())) {
+            ConstantArray *CA = dyn_cast<ConstantArray>(GV->getInitializer());
+            for (unsigned j = 0; j < CA->getNumOperands(); j++) {
+              Constant *Opp = CA->getOperand(j);
+              if (GlobalVariable *OppGV =
+                      dyn_cast<GlobalVariable>(Opp->stripPointerCasts())) {
+                if (!(OppGV->hasInitializer() &&
+                      OppGV->getSection() != "llvm.metadata" &&
+                      !(GV->getSection().contains("__objc") &&
+                        !GV->getSection().contains("array")) &&
+                      !OppGV->getName().contains("OBJC")))
+                  continue;
+                Users.insert(Opp);
+                if (std::find(Globals.begin(), Globals.end(), OppGV) ==
+                    Globals.end()) {
+                  Globals.emplace_back(OppGV);
+                  breakThisFor = true;
+                }
+              }
+            }
+          }
+        }
+        GVIter = Globals.erase(GVIter);
+        if (breakThisFor)
+          break;
       }
+    }
     for (GlobalVariable *GV : rawStrings) {
       if (GV->getInitializer()->isZeroValue() ||
           GV->getInitializer()->isNullValue())
@@ -414,7 +463,7 @@ struct StringEncryption : public ModulePass {
     *(GV->getParent()), newCS->getType(), false, GV->getLinkage(), newCS,
     name, nullptr, GV->getThreadLocalMode(),
     GV->getType()->getAddressSpace());
-      // Fix Arm64e on Apple Clang
+      // Fix Arm64e on Apple LLVM
       if (GV->getParent()->getModuleFlag("ptrauth.abi-version")) {
         GlobalVariable *PtrauthGV = cast<GlobalVariable>(cast<ConstantExpr>(newCS->getOperand(0))->getOperand(0));
         if (PtrauthGV->getSection() == "llvm.ptrauth" && cast<GlobalVariable>(GV->getParent()->getContext().supportsTypedPointers() ? cast<ConstantExpr>(PtrauthGV->getInitializer()->getOperand(2))->getOperand(0) : PtrauthGV->getInitializer()->getOperand(2))->getGlobalIdentifier() != ObjcGV->getGlobalIdentifier()) {
