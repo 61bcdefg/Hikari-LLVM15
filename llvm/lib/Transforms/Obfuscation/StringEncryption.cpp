@@ -71,7 +71,7 @@ struct StringEncryption : public ModulePass {
     set<GlobalVariable *> objCStrings;
     map<GlobalVariable *, pair<Constant *, GlobalVariable *>> GV2Keys;
     map<GlobalVariable * /*old*/, pair<GlobalVariable * /*encrypted*/, GlobalVariable * /*decrypt space*/>> old2new;
-    while (Globals.size()) { //
+    while (Globals.size()) {
       std::vector<GlobalVariable *>::iterator GVIter = Globals.begin();
       for (; GVIter != Globals.end(); ) {
         bool breakThisFor = false;
@@ -90,7 +90,8 @@ struct StringEncryption : public ModulePass {
                                          ->stripPointerCasts()));
           } else if (isa<ConstantDataSequential>(GV->getInitializer())) {
             rawStrings.insert(GV);
-          } else if (isa<ConstantStruct>(GV->getInitializer())) {
+          } else if (isa<ConstantStruct>(GV->getInitializer()) &&
+                     !GV->getName().startswith("__block_literal_global")) {
             ConstantStruct *CS = cast<ConstantStruct>(GV->getInitializer());
             for (unsigned i = 0; i < CS->getNumOperands(); i++) {
               Constant *Op = CS->getOperand(i);
