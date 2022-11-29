@@ -11,6 +11,10 @@ using namespace llvm;
 using namespace std;
 // Shamefully borrowed from ../Scalar/RegToMem.cpp and .../IR/Instruction.cpp :(
 bool valueEscapes(Instruction *Inst) {
+  // https://reviews.llvm.org/D137700
+  if (!Inst->getType()->isSized())
+    return false;
+
   for (User *U : Inst->users()) {
     Instruction *I = cast<Instruction>(U);
     if (!dyn_cast<PHINode>(I)) {
@@ -67,17 +71,8 @@ void appendToAnnotations(Module &M, ConstantStruct *Data) {
 void FixFunctionConstantExpr(Function *Func) {
   // Replace ConstantExpr with equal instructions
   // Otherwise replacing on Constant will crash the compiler
-  vector<BasicBlock *> exceptBBs;
-  for (BasicBlock &BB : *Func) {
-    if (BB.isLandingPad()) {
-      exceptBBs.emplace_back(&BB);
-      for (unsigned int i = 0; i < BB.getTerminator()->getNumSuccessors(); i++)
-        exceptBBs.emplace_back(BB.getTerminator()->getSuccessor(i));
-    }
-  }
   for (BasicBlock &BB : *Func)
-    if (find(exceptBBs.begin(), exceptBBs.end(), &BB) == exceptBBs.end())
-      FixBasicBlockConstantExpr(&BB);
+    FixBasicBlockConstantExpr(&BB);
 }
 void FixBasicBlockConstantExpr(BasicBlock *BB) {
   // Replace ConstantExpr with equal instructions
@@ -89,10 +84,10 @@ void FixBasicBlockConstantExpr(BasicBlock *BB) {
   Instruction* FunctionInsertPt=&*(BB->getParent()->getEntryBlock().getFirstInsertionPt());
 
   for (Instruction &I : *BB) {
-    if (isa<LandingPadInst>(I) || isa<FuncletPadInst>(I))
+    if (isa<LandingPadInst>(I) || isa<FuncletPadInst>(I) || isa<IntrinsicInst>(I))
       continue;
     for (unsigned int i = 0; i < I.getNumOperands(); i++)
-      if (ConstantExpr* C=dyn_cast<ConstantExpr>(I.getOperand(i))){
+      if (ConstantExpr* C=dyn_cast<ConstantExpr>(I.getOperand(i))) {
         IRBuilder<NoFolder> IRB(&I);
         if (isa<PHINode>(I))
           IRB.SetInsertPoint(FunctionInsertPt);

@@ -152,7 +152,7 @@ struct IndirectBranch : public FunctionPass {
           Value *enckeyLoad = IRB.CreateXor(IRB.CreateLoad(encenckeyGV->getValueType(), encenckeyGV),
               encenckey);
           LI = IRB.CreateGEP(Type::getInt8Ty(Func.getContext()), IRB.CreateLoad(Type::getInt8PtrTy(Func.getContext()),
-                             IRB.CreateLoad(AI3->getAllocatedType(), AI3)), IRB.CreateSub(ConstantInt::get(Type::getInt32Ty(Func.getContext()), 0), enckeyLoad), "IndirectBranchingTargetAddress");
+                             IRB.CreateLoad(AI3->getAllocatedType(), AI3)), IRB.CreateSub(zero, enckeyLoad), "IndirectBranchingTargetAddress");
           if (!BI->isConditional() && isa<BinaryOperator>(RealIndex))
             SubstituteImpl::substituteXor(dyn_cast<BinaryOperator>(RealIndex));
           if (isa<BinaryOperator>(enckeyLoad))
