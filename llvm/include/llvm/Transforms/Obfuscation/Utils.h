@@ -12,11 +12,12 @@
 #include "llvm/IR/Constants.h"
 #endif
 void fixStack(llvm::Function *f);
-void LowerInvokeInst(llvm::Function &F);
 std::string readAnnotate(llvm::Function *f);
-std::map<llvm::GlobalValue*,llvm::StringRef> BuildAnnotateMap(llvm::Module& M);
 bool toObfuscate(bool flag, llvm::Function *f, std::string attribute);
 void FixBasicBlockConstantExpr(llvm::BasicBlock *BB);
 void FixFunctionConstantExpr(llvm::Function *Func);
+#if 0
 void appendToAnnotations(llvm::Module &M,llvm::ConstantStruct *Data);
+std::map<llvm::GlobalValue*,llvm::StringRef> BuildAnnotateMap(llvm::Module& M);
+#endif
 #endif
