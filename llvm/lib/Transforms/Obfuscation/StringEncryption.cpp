@@ -100,7 +100,7 @@ struct StringEncryption : public ModulePass {
               Constant *Op = CS->getOperand(i);
               if (GlobalVariable *OpGV =
                       dyn_cast<GlobalVariable>(Op->stripPointerCasts())) {
-                if (!handleableGV(OpGV) && (flag || OpGV->getNumUses() == 1))
+                if (!handleableGV(OpGV) || !(flag || OpGV->getNumUses() == 1))
                   continue;
                 Users.insert(Op);
                 if (std::find(Globals.begin(), Globals.end(), OpGV) ==
@@ -117,7 +117,7 @@ struct StringEncryption : public ModulePass {
               Constant *Opp = CA->getOperand(j);
               if (GlobalVariable *OppGV =
                       dyn_cast<GlobalVariable>(Opp->stripPointerCasts())) {
-                if (!handleableGV(OppGV) && (flag || OppGV->getNumUses() == 1))
+                if (!handleableGV(OppGV) || !(flag || OppGV->getNumUses() == 1))
                   continue;
                 Users.insert(Opp);
                 if (std::find(Globals.begin(), Globals.end(), OppGV) ==
@@ -333,7 +333,7 @@ struct StringEncryption : public ModulePass {
     *(GV->getParent()), newCS->getType(), false, GV->getLinkage(), newCS,
     name, nullptr, GV->getThreadLocalMode(),
     GV->getType()->getAddressSpace());
-      // Fix Arm64e on Apple LLVM
+      // Fix arm64e on Apple LLVM and need to disable optimizations
       if (GV->getParent()->getModuleFlag("ptrauth.abi-version")) {
         GlobalVariable *PtrauthGV = cast<GlobalVariable>(cast<ConstantExpr>(newCS->getOperand(0))->getOperand(0));
         if (PtrauthGV->getSection() == "llvm.ptrauth" && cast<GlobalVariable>(GV->getParent()->getContext().supportsTypedPointers() ? cast<ConstantExpr>(PtrauthGV->getInitializer()->getOperand(2))->getOperand(0) : PtrauthGV->getInitializer()->getOperand(2))->getGlobalIdentifier() != ObjcGV->getGlobalIdentifier()) {
