@@ -64,10 +64,17 @@ struct AntiHook : public ModulePass {
   bool opaquepointers;
   bool appleptrauth;
   bool hasobjcmethod;
-  AntiHook() : ModulePass(ID) { this->flag = true; }
-  AntiHook(bool flag) : ModulePass(ID) { this->flag = flag; }
+  bool initialized;
+  AntiHook() : ModulePass(ID) {
+    this->flag = true;
+    this->initialized = false;
+  }
+  AntiHook(bool flag) : ModulePass(ID) {
+    this->flag = flag;
+    this->initialized = false;
+  }
   StringRef getPassName() const override { return "AntiHook"; }
-  bool doInitialization(Module &M) override {
+  bool initialize(Module &M) {
     if (PreCompiledIRPath == "") {
       SmallString<32> Path;
       if (sys::path::home_directory(Path)) { // Stolen from LineEditor.cpp
@@ -131,6 +138,7 @@ struct AntiHook : public ModulePass {
                               {Int8PtrTy, Int8PtrTy}, false));
       }
     }
+    this->initialized = true;
     return true;
   }
 
@@ -139,6 +147,8 @@ struct AntiHook : public ModulePass {
     for (Function &F : M) {
       if (toObfuscate(flag, &F, "antihook")) {
         errs() << "Running AntiHooking On " << F.getName() << "\n";
+        if (!this->initialized)
+          initialize(M);
         if (Tri.isAArch64()) {
           vector<Function *> calledFunctions;
           calledFunctions.emplace_back(&F);

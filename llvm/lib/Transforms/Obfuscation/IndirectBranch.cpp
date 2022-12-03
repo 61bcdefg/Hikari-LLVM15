@@ -57,15 +57,14 @@ struct IndirectBranch : public FunctionPass {
         M, AT, false, GlobalValue::LinkageTypes::InternalLinkage,
         BlockAddressArray, "IndirectBranchingGlobalTable");
     appendToCompilerUsed(M, {Table});
+    this->initialized = true;
     return true;
   }
   bool runOnFunction(Function &Func) override {
     if (!toObfuscate(flag, &Func, "indibr"))
       return false;
-    if (!this->initialized) {
+    if (!this->initialized)
       initialize(*Func.getParent());
-      this->initialized = true;
-    }
     errs() << "Running IndirectBranch On " << Func.getName() << "\n";
     vector<BranchInst *> BIs;
     for (Instruction &Inst : instructions(Func))
@@ -180,12 +179,6 @@ struct IndirectBranch : public FunctionPass {
         ReplaceInstWithInst(BI, indirBr);
       }
     }
-    return true;
-  }
-  bool doFinalization(Module &M) override {
-    indexmap.clear();
-    encmap.clear();
-    initialized = false;
     return true;
   }
 };
