@@ -80,15 +80,15 @@ void FixBasicBlockConstantExpr(BasicBlock *BB) {
   // Otherwise replacing on Constant will crash the compiler
   // Things to note:
   // - Phis must be placed at BB start so CEs must be placed prior to current BB
-  assert(!BB->empty()&&"BasicBlock is empty!");
-  assert((BB->getParent()!=NULL)&&"BasicBlock must be in a Function!");
+  assert(!BB->empty() && "BasicBlock is empty!");
+  assert((BB->getParent() != NULL) && "BasicBlock must be in a Function!");
   Instruction* FunctionInsertPt=&*(BB->getParent()->getEntryBlock().getFirstInsertionPt());
 
   for (Instruction &I : *BB) {
     if (isa<LandingPadInst>(I) || isa<FuncletPadInst>(I) || isa<IntrinsicInst>(I))
       continue;
     for (unsigned int i = 0; i < I.getNumOperands(); i++)
-      if (ConstantExpr* C=dyn_cast<ConstantExpr>(I.getOperand(i))) {
+      if (ConstantExpr *C = dyn_cast<ConstantExpr>(I.getOperand(i))) {
         IRBuilder<NoFolder> IRB(&I);
         if (isa<PHINode>(I))
           IRB.SetInsertPoint(FunctionInsertPt);

@@ -36,6 +36,27 @@ struct StringEncryption : public ModulePass {
   StringRef getPassName() const override {
     return "StringEncryption";
   }
+  bool usersAllInOneFunction(GlobalVariable *GV) {
+    vector<Instruction *> instusers;
+    for (User *user : GV->users()) {
+      if (Instruction *Inst = dyn_cast<Instruction>(user))
+        instusers.emplace_back(Inst);
+      else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(user)) {
+        for (User *user2 : CE->users()) {
+          if (Instruction *Inst = dyn_cast<Instruction>(user2))
+            instusers.emplace_back(Inst);
+          else return GV->getNumUses() == 1;
+        }
+      } else return GV->getNumUses() == 1;
+    }
+    Function *LastFuncOfInst = nullptr;
+    for (Instruction *I : instusers) {
+      if (LastFuncOfInst != nullptr && I->getFunction() != LastFuncOfInst)
+        return false;
+      LastFuncOfInst = I->getFunction();
+    }
+    return true;
+  }
   bool handleableGV(GlobalVariable *GV) {
     if (GV->hasInitializer() && GV->getSection() != "llvm.metadata" &&
         GV->getSection() != "llvm.ptrauth" &&
@@ -43,7 +64,7 @@ struct StringEncryption : public ModulePass {
           !GV->getSection().contains("array")) &&
         !GV->getName().contains("OBJC") &&
         ((GV->getLinkage() == GlobalValue::LinkageTypes::PrivateLinkage ||
-         GV->getLinkage() == GlobalValue::LinkageTypes::InternalLinkage) && (flag || GV->getNumUses() == 1)) &&
+         GV->getLinkage() == GlobalValue::LinkageTypes::InternalLinkage) && (flag || usersAllInOneFunction(GV))) &&
         std::find(transformedgv.begin(), transformedgv.end(), GV) == transformedgv.end())
       return true;
     return false;
@@ -283,7 +304,7 @@ struct StringEncryption : public ModulePass {
       transformedgv.emplace_back(DecryptSpaceOCGV);
       old2new[GV] = make_pair(EncryptedOCGV, DecryptSpaceOCGV);
     } // End prepare ObjC new GV
-    if (old2new.empty() || GV2Keys.empty())
+    if (GV2Keys.empty())
       return;
     // Replace Uses
     for (User *U : Users) {
@@ -415,13 +436,6 @@ struct StringEncryption : public ModulePass {
     }
     IRB.CreateBr(C);
   } // End of HandleDecryptionBlock
-
-  bool doFinalization(Module &M) override {
-    encstatus.clear();
-    mgv2keys.clear();
-    transformedgv.clear();
-    return false;
-  }
 };
 
 ModulePass *createStringEncryptionPass(bool flag) {

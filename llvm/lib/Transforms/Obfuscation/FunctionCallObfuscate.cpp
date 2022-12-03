@@ -44,12 +44,19 @@ struct FunctionCallObfuscate : public FunctionPass {
   json Configuration;
 #endif
   bool flag;
-  FunctionCallObfuscate() : FunctionPass(ID) { this->flag = true; }
-  FunctionCallObfuscate(bool flag) : FunctionPass(ID) { this->flag = flag; }
+  bool initialized;
+  FunctionCallObfuscate() : FunctionPass(ID) {
+    this->flag = true;
+    this->initialized = false;
+  }
+  FunctionCallObfuscate(bool flag) : FunctionPass(ID) {
+    this->flag = flag;
+    this->initialized = false;
+  }
   StringRef getPassName() const override {
     return "FunctionCallObfuscate";
   }
-  virtual bool doInitialization(Module &M) override {
+  bool initialize(Module &M) {
     // Basic Defs
     if (SymbolConfigPath == "+-x/") {
       SmallString<32> Path;
@@ -68,29 +75,31 @@ struct FunctionCallObfuscate : public FunctionPass {
              << SymbolConfigPath << "\n";
     }
     Triple tri(M.getTargetTriple());
-    if (tri.getVendor() != Triple::VendorType::Apple)
-      return false;
-    Type *Int8PtrTy = Type::getInt8PtrTy(M.getContext());
-    // Generic ObjC Runtime Declarations
-    FunctionType *IMPType =
-        FunctionType::get(Int8PtrTy, {Int8PtrTy, Int8PtrTy}, true);
-    PointerType *IMPPointerType = PointerType::get(IMPType, 0);
-    FunctionType *class_replaceMethod_type =
-        FunctionType::get(IMPPointerType, {Int8PtrTy, Int8PtrTy, IMPPointerType, Int8PtrTy}, false);
-    M.getOrInsertFunction("class_replaceMethod", class_replaceMethod_type);
-    FunctionType *sel_registerName_type =
-        FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
-    M.getOrInsertFunction("sel_registerName", sel_registerName_type);
-    FunctionType *objc_getClass_type =
-        FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
-    M.getOrInsertFunction("objc_getClass", objc_getClass_type);
-    M.getOrInsertFunction("objc_getMetaClass", objc_getClass_type);
-    FunctionType *class_getName_Type =
-        FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
-    M.getOrInsertFunction("class_getName", class_getName_Type);
-    FunctionType *objc_getMetaClass_Type =
-        FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
-    M.getOrInsertFunction("objc_getMetaClass", objc_getMetaClass_Type);
+    if (tri.getVendor() == Triple::VendorType::Apple) {
+      Type *Int8PtrTy = Type::getInt8PtrTy(M.getContext());
+      // Generic ObjC Runtime Declarations
+      FunctionType *IMPType =
+          FunctionType::get(Int8PtrTy, {Int8PtrTy, Int8PtrTy}, true);
+      PointerType *IMPPointerType = PointerType::get(IMPType, 0);
+      FunctionType *class_replaceMethod_type = FunctionType::get(
+          IMPPointerType, {Int8PtrTy, Int8PtrTy, IMPPointerType, Int8PtrTy},
+          false);
+      M.getOrInsertFunction("class_replaceMethod", class_replaceMethod_type);
+      FunctionType *sel_registerName_type =
+          FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
+      M.getOrInsertFunction("sel_registerName", sel_registerName_type);
+      FunctionType *objc_getClass_type =
+          FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
+      M.getOrInsertFunction("objc_getClass", objc_getClass_type);
+      M.getOrInsertFunction("objc_getMetaClass", objc_getClass_type);
+      FunctionType *class_getName_Type =
+          FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
+      M.getOrInsertFunction("class_getName", class_getName_Type);
+      FunctionType *objc_getMetaClass_Type =
+          FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
+      M.getOrInsertFunction("objc_getMetaClass", objc_getMetaClass_Type);
+    }
+    this->initialized = true;
     return true;
   }
   void HandleObjC(Module &M) {
@@ -168,6 +177,8 @@ struct FunctionCallObfuscate : public FunctionPass {
     }
     errs() << "Running FunctionCallObfuscate On " << F.getName() << "\n";
     Module *M = F.getParent();
+    if (!this->initialized)
+      initialize(*M);
     FixFunctionConstantExpr(&F);
     HandleObjC(*M);
     Type *Int32Ty = Type::getInt32Ty(M->getContext());

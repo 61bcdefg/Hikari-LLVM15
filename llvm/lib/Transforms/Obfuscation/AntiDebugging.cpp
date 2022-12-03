@@ -52,10 +52,17 @@ namespace llvm {
 struct AntiDebugging : public ModulePass {
   static char ID;
   bool flag;
-  AntiDebugging() : ModulePass(ID) { this->flag = true; }
-  AntiDebugging(bool flag) : ModulePass(ID) { this->flag = flag; }
+  bool initialized;
+  AntiDebugging() : ModulePass(ID) {
+    this->flag = true;
+    this->initialized = false;
+  }
+  AntiDebugging(bool flag) : ModulePass(ID) {
+    this->flag = flag;
+    this->initialized = false;
+  }
   StringRef getPassName() const override { return "AntiDebugging"; }
-  bool doInitialization(Module &M) override {
+  bool initialize(Module &M) {
     if (PreCompiledIRPath == "") {
       SmallString<32> Path;
       if (sys::path::home_directory(Path)) { // Stolen from LineEditor.cpp
@@ -98,13 +105,12 @@ struct AntiDebugging : public ModulePass {
         ADBInit->removeFnAttr(Attribute::AttrKind::OptimizeNone);
         ADBInit->addFnAttr(Attribute::AttrKind::AlwaysInline);
       }
-      return true;
     } else {
       errs() << "Failed To Link PreCompiled AntiDebugging IR From:"
              << PreCompiledIRPath << "\n";
-      return false;
     }
-
+    this->initialized = true;
+    return true;
   }
   bool runOnModule(Module &M) override {
     if (ProbRate > 100) {
@@ -116,6 +122,8 @@ struct AntiDebugging : public ModulePass {
       if (toObfuscate(flag, &F, "adb") && F.getName() != "ADBCallBack" &&
           F.getName() != "InitADB") {
         errs() << "Running AntiDebugging On " << F.getName() << "\n";
+        if (!this->initialized)
+          initialize(M);
         if ((int)llvm::cryptoutils->get_range(100) <= ProbRate)
           runOnFunction(F);
       }

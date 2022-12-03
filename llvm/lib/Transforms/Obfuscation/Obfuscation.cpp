@@ -96,7 +96,6 @@ struct Obfuscation : public ModulePass {
   }
   bool runOnModule(Module &M) override {
     ModulePass *MP = createAntiHookPass(EnableAntiHooking);
-    MP->doInitialization(M);
     MP->runOnModule(M);
     delete MP;
     // Initial ACD Pass
@@ -109,13 +108,11 @@ struct Obfuscation : public ModulePass {
     // Now do FCO
     FunctionPass *FP = createFunctionCallObfuscatePass(
         EnableAllObfuscation || EnableFunctionCallObfuscate);
-    FP->doInitialization(M);
     for (Function &F : M)
       if (!F.isDeclaration())
         FP->runOnFunction(F);
     delete FP;
     MP = createAntiDebuggingPass(EnableAntiDebugging);
-    MP->doInitialization(M);
     MP->runOnModule(M);
     delete MP;
     // Now Encrypt Strings
