@@ -73,20 +73,19 @@ struct FunctionWrapper : public ModulePass {
          !isa<Function>(calledFunction)) ||
         CS->getIntrinsicID() != Intrinsic::not_intrinsic)
       return nullptr;
+    vector<unsigned int> byvalArgNums = {};
     if (Function *tmp = dyn_cast<Function>(calledFunction)) {
       if (tmp->getName().startswith("clang.")) {
         // Clang Intrinsic
         return nullptr;
       }
       for (Argument &arg : tmp->args()) {
-        if (arg.hasByValAttr() ||
-            arg.hasStructRetAttr() ||
+        if (arg.hasStructRetAttr() ||
             arg.hasSwiftSelfAttr()) {
-          // Arguments with byval attribute yields issues without proper handling. The "proper" method to handle this is to revisit and patch attribute stealing code. Technically readonly attr probably should also get filtered out here.
-
-          // Nah too much work. This would do for open-source version since private already this pass with more advanced solutions
           return nullptr;
         }
+        if (arg.hasByValAttr())
+          byvalArgNums.emplace_back(arg.getArgNo());
       }
     }
     // Create a new function which in turn calls the actual function
@@ -103,8 +102,30 @@ struct FunctionWrapper : public ModulePass {
     appendToCompilerUsed(*func->getParent(), {func});
     BasicBlock *BB = BasicBlock::Create(func->getContext(), "", func);
     vector<Value *> params;
-    for (Argument &arg : func->args())
-      params.emplace_back(&arg);
+    if (byvalArgNums.empty())
+      for (Argument &arg : func->args())
+        params.emplace_back(&arg);
+    else
+      for (Argument &arg : func->args()) {
+        if (std::find(byvalArgNums.begin(), byvalArgNums.end(),
+                      arg.getArgNo()) != byvalArgNums.end()) {
+          arg.addAttr(Attribute::ByVal);
+          params.emplace_back(&arg);
+        } else {
+          AllocaInst *AI = nullptr;
+          if (!BB->empty()) {
+            BasicBlock::iterator InsertPoint = BB->begin();
+            while (isa<AllocaInst>(InsertPoint))
+              ++InsertPoint;
+            AI = new AllocaInst(arg.getType(), 0, "", &*InsertPoint);
+          }
+          else
+            AI = new AllocaInst(arg.getType(), 0, "", BB);
+          new StoreInst(&arg, AI, BB);
+          LoadInst *LI = new LoadInst(AI->getAllocatedType(), AI, "", BB);
+          params.emplace_back(LI);
+        }
+      }
     Value *retval = CallInst::Create(
         CS->getFunctionType(),
         ConstantExpr::getBitCast(cast<Function>(calledFunction),
