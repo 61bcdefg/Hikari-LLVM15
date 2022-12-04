@@ -193,7 +193,9 @@ ConstantEncryption在每个函数混淆的次数。默认为1
 
 加密跳转表和索引。默认关闭
 
-#### FunctionWrapper
+#### FunctionWrapper(修改过)
+
+经过修改，支持混淆存在值传递(passed by value)的函数
 
 -enable-funcwra
 
