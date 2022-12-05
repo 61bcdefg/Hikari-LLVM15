@@ -17,6 +17,9 @@ add_llvm_component_library(LLVMObfuscation
   Obfuscation.cpp
   DEPENDS
   intrinsics_gen
+
+  LINK_COMPONENTS
+  Linker
   )
 execute_process(
   COMMAND git log -1 --format=%H
