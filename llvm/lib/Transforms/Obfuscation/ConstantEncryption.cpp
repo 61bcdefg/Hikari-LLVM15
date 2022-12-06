@@ -77,6 +77,8 @@ struct ConstantEncryption : public ModulePass {
             if (!(cryptoutils->get_range(100) <= ObfProbRate))
               continue;
             for (unsigned i = 0; i < I.getNumOperands(); i++) {
+              if (isa<SwitchInst>(&I) && i != 0)
+                break;
               Value *Op = I.getOperand(i);
               if (isa<ConstantInt>(Op))
                 HandleConstantIntOperand(&I, i);
@@ -97,6 +99,8 @@ struct ConstantEncryption : public ModulePass {
                 continue;
               for (unsigned int i = 0; i < I.getNumOperands(); i++)
                 if (ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand(i))) {
+                  if (isa<SwitchInst>(&I) && i != 0)
+                    break;
                   GlobalVariable *GV = new GlobalVariable(
                       M, CI->getType(), false,
                       GlobalValue::LinkageTypes::PrivateLinkage,
