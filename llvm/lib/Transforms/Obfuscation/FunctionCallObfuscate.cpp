@@ -199,7 +199,7 @@ struct FunctionCallObfuscate : public FunctionPass {
         if (isa<CallInst>(&Inst) || isa<InvokeInst>(&Inst)) {
           CallSite CS(&Inst);
           Function *calledFunction = CS.getCalledFunction();
-          if (calledFunction == NULL) {
+          if (!calledFunction) {
             /*
               Note:
               For Indirect Calls:
@@ -212,7 +212,7 @@ struct FunctionCallObfuscate : public FunctionPass {
           }
           // Simple Extracting Failed
           // Use our own implementation
-          if (calledFunction == NULL)
+          if (!calledFunction)
             continue;
           // It's only safe to restrict our modification to external symbols
           // Otherwise stripped binary will crash
@@ -228,21 +228,21 @@ struct FunctionCallObfuscate : public FunctionPass {
                                .get<string>();
             StringRef calledFunctionName = StringRef(sname);
             BasicBlock *EntryBlock = CS->getParent();
-            IRBuilder<> IRB(EntryBlock, EntryBlock->getFirstInsertionPt());
             if (Tri.isOSDarwin()) {
-              dlopen_flag=DARWIN_FLAG;
+              dlopen_flag = DARWIN_FLAG;
             }
             else if (Tri.isAndroid()) {
               if (Tri.isArch64Bit())
-                dlopen_flag=ANDROID64_FLAG;
+                dlopen_flag = ANDROID64_FLAG;
               else
-                dlopen_flag=ANDROID32_FLAG;
+                dlopen_flag = ANDROID32_FLAG;
             }
             else {
-              errs() << "[FunctionCallObfuscate]Unsupported Target Triple:"
+              errs() << "[FunctionCallObfuscate] Unsupported Target Triple:"
                          << F.getParent()->getTargetTriple() << "\n";
-              errs()<<"[FunctionCallObfuscate]Applying Default Signature:"<<dlopen_flag<<"\n";
+              errs() << "[FunctionCallObfuscate] Applying Default Signature:" << dlopen_flag << "\n";
             }
+            IRBuilder<> IRB(EntryBlock, EntryBlock->getFirstInsertionPt());
             Value *Handle =
                 IRB.CreateCall(dlopen_decl, {Constant::getNullValue(Int8PtrTy),
                               ConstantInt::get(Int32Ty, dlopen_flag)});

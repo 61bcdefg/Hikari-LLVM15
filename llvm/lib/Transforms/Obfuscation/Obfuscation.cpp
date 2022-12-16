@@ -84,6 +84,15 @@ static void LoadEnv() {
  if (getenv("CFFOBF")) {
    EnableFlattening = true;
  }
+ if (getenv("CONSTENC")) {
+   EnableConstantEncryption = true;
+ }
+ if (getenv("ANTIHOOK")) {
+   EnableAntiHooking = true;
+ }
+ if (getenv("ADB")) {
+   EnableAntiDebugging = true;
+ }
 }
 namespace llvm {
 struct Obfuscation : public ModulePass {
@@ -96,6 +105,7 @@ struct Obfuscation : public ModulePass {
   }
   bool runOnModule(Module &M) override {
     ModulePass *MP = createAntiHookPass(EnableAntiHooking);
+    MP->doInitialization(M);
     MP->runOnModule(M);
     delete MP;
     // Initial ACD Pass
@@ -123,7 +133,7 @@ struct Obfuscation : public ModulePass {
     // Now perform Function-Level Obfuscation
     for (Function &F : M)
       if (!F.isDeclaration()) {
-        FunctionPass *P = NULL;
+        FunctionPass *P = nullptr;
         P = createSplitBasicBlockPass(EnableAllObfuscation ||
                                       EnableBasicBlockSplit);
         P->runOnFunction(F);

@@ -83,11 +83,11 @@ bool Flattening::flatten(Function *f) {
   BasicBlock *insert = &*tmp;
 
   // If main begin with an if or throw
-  Instruction *br = NULL;
+  Instruction *br = nullptr;
   if (isa<BranchInst>(insert->getTerminator()) || isa<InvokeInst>(insert->getTerminator()))
     br = insert->getTerminator();
 
-  if (br != NULL) { // https://github.com/eshard/obfuscator-llvm/commit/af789724563ff3d300317fe4a9a9b0f3a88007eb
+  if (br) { // https://github.com/eshard/obfuscator-llvm/commit/af789724563ff3d300317fe4a9a9b0f3a88007eb
     BasicBlock::iterator i = insert->end();
     --i;
 
@@ -99,7 +99,7 @@ bool Flattening::flatten(Function *f) {
   }
 
   // Remove jump
-  Instruction* oldTerm=insert->getTerminator();
+  Instruction* oldTerm = insert->getTerminator();
 
   // Create switch variable and set as it
   switchVar =
@@ -138,7 +138,7 @@ bool Flattening::flatten(Function *f) {
 
   // Put all BB in the switch
   for (BasicBlock *i : origBB) {
-    ConstantInt *numCase = NULL;
+    ConstantInt *numCase = nullptr;
 
     // Move the BB inside the switch (only visual, no code logic)
     i->moveBefore(loopEnd);
@@ -152,13 +152,13 @@ bool Flattening::flatten(Function *f) {
 
   // Recalculate switchVar
   for (BasicBlock *i : origBB) {
-    ConstantInt *numCase = NULL;
+    ConstantInt *numCase = nullptr;
 
     if (i->getTerminator()->getOpcode() == Instruction::Invoke) {
       // Get next case
       numCase = switchI->findCaseDest(i->getTerminator()->getSuccessor(0));
       // If next case == default case (switchDefault)
-      if (numCase == NULL) {
+      if (!numCase) {
         numCase = cast<ConstantInt>(
             ConstantInt::get(switchI->getCondition()->getType(),
                              llvm::cryptoutils->scramble32(
@@ -186,7 +186,7 @@ bool Flattening::flatten(Function *f) {
       numCase = switchI->findCaseDest(succ);
 
       // If next case == default case (switchDefault)
-      if (numCase == NULL) {
+      if (!numCase) {
         numCase = cast<ConstantInt>(
             ConstantInt::get(switchI->getCondition()->getType(),
                              llvm::cryptoutils->scramble32(
@@ -208,14 +208,14 @@ bool Flattening::flatten(Function *f) {
           switchI->findCaseDest(i->getTerminator()->getSuccessor(1));
 
       // Check if next case == default case (switchDefault)
-      if (numCaseTrue == NULL) {
+      if (!numCaseTrue) {
         numCaseTrue = cast<ConstantInt>(
             ConstantInt::get(switchI->getCondition()->getType(),
                              llvm::cryptoutils->scramble32(
                                  switchI->getNumCases() - 1, scrambling_key)));
       }
 
-      if (numCaseFalse == NULL) {
+      if (!numCaseFalse) {
         numCaseFalse = cast<ConstantInt>(
             ConstantInt::get(switchI->getCondition()->getType(),
                              llvm::cryptoutils->scramble32(

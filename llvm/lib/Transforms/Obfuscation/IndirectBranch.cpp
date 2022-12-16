@@ -54,7 +54,7 @@ struct IndirectBranch : public FunctionPass {
     Constant *BlockAddressArray =
         ConstantArray::get(AT, ArrayRef<Constant *>(BBs));
     GlobalVariable *Table = new GlobalVariable(
-        M, AT, false, GlobalValue::LinkageTypes::InternalLinkage,
+        M, AT, false, GlobalValue::LinkageTypes::PrivateLinkage,
         BlockAddressArray, "IndirectBranchingGlobalTable");
     appendToCompilerUsed(M, {Table});
     this->initialized = true;
@@ -92,7 +92,7 @@ struct IndirectBranch : public FunctionPass {
       if (!BI->getSuccessor(0)->isEntryBlock())
         BBs.emplace_back(BI->getSuccessor(0));
 
-      GlobalVariable *LoadFrom = NULL;
+      GlobalVariable *LoadFrom = nullptr;
       if (BI->isConditional() ||
           indexmap.find(BI->getSuccessor(0)) == indexmap.end()) {
         ArrayType *AT = ArrayType::get(Type::getInt8PtrTy(Func.getParent()->getContext()), BBs.size());
@@ -104,14 +104,14 @@ struct IndirectBranch : public FunctionPass {
             ConstantArray::get(AT, ArrayRef<Constant *>(BlockAddresses));
         LoadFrom = new GlobalVariable(
             *Func.getParent(), AT, false,
-            GlobalValue::LinkageTypes::InternalLinkage, BlockAddressArray,
+            GlobalValue::LinkageTypes::PrivateLinkage, BlockAddressArray,
             "HikariConditionalLocalIndirectBranchingTable");
         appendToCompilerUsed(*Func.getParent(), {LoadFrom});
       } else {
         LoadFrom = Func.getParent()->getGlobalVariable(
             "IndirectBranchingGlobalTable", true);
       }
-      Value *index = NULL;
+      Value *index = nullptr;
       ConstantInt *IndexEncKey = EncryptJumpTarget ?
           ConstantInt::get(Type::getInt32Ty(Func.getParent()->getContext()),cryptoutils->get_uint32_t()) : nullptr;
       if (BI->isConditional()) {
@@ -137,6 +137,8 @@ struct IndirectBranch : public FunctionPass {
       }
       Value *RealIndex = EncryptJumpTarget && !BI->isConditional() ? IRB.CreateXor(index, IndexEncKey)
                              : index;
+      Value *LI = nullptr;
+      Value *enckeyLoad = nullptr;
       if (UseStack) {
         AllocaInst *AI = IRB.CreateAlloca(LoadFrom->getType());
         AllocaInst *AI2 = IRB.CreateAlloca(index->getType());
@@ -146,38 +148,31 @@ struct IndirectBranch : public FunctionPass {
                           {zero, IRB.CreateLoad(index->getType(), AI2)});
         AllocaInst *AI3 = IRB.CreateAlloca(GEP->getType());
         IRB.CreateStore(GEP, AI3);
-        Value *LI = IRB.CreateLoad(AI3->getAllocatedType(), IRB.CreateLoad(AI3->getAllocatedType(), AI3), "IndirectBranchingTargetAddress");
+        LI = IRB.CreateLoad(AI3->getAllocatedType(), IRB.CreateLoad(AI3->getAllocatedType(), AI3), "IndirectBranchingTargetAddress");
         if (EncryptJumpTarget) {
-          Value *enckeyLoad = IRB.CreateXor(IRB.CreateLoad(encenckeyGV->getValueType(), encenckeyGV),
+          enckeyLoad = IRB.CreateXor(IRB.CreateLoad(encenckeyGV->getValueType(), encenckeyGV),
               encenckey);
           LI = IRB.CreateGEP(Type::getInt8Ty(Func.getContext()), IRB.CreateLoad(Type::getInt8PtrTy(Func.getContext()),
                              IRB.CreateLoad(AI3->getAllocatedType(), AI3)), IRB.CreateSub(zero, enckeyLoad), "IndirectBranchingTargetAddress");
-          if (!BI->isConditional() && isa<BinaryOperator>(RealIndex))
-            SubstituteImpl::substituteXor(dyn_cast<BinaryOperator>(RealIndex));
-          if (isa<BinaryOperator>(enckeyLoad))
-            SubstituteImpl::substituteXor(dyn_cast<BinaryOperator>(enckeyLoad));
         }
-        IndirectBrInst *indirBr = IndirectBrInst::Create(LI, BBs.size());
-        for (BasicBlock *BB : BBs)
-          indirBr->addDestination(BB);
-        ReplaceInstWithInst(BI, indirBr);
       }
       else {
         Value *GEP = IRB.CreateGEP(LoadFrom->getValueType(), LoadFrom, {zero, RealIndex});
-        Value *LI = IRB.CreateLoad(GEP->getType(), GEP, "IndirectBranchingTargetAddress");
+        LI = IRB.CreateLoad(GEP->getType(), GEP, "IndirectBranchingTargetAddress");
         if (EncryptJumpTarget) {
-          Value *enckeyLoad = IRB.CreateXor(IRB.CreateLoad(encenckeyGV->getValueType(), encenckeyGV), encenckey);
           LI = IRB.CreateGEP(Type::getInt8Ty(Func.getContext()), IRB.CreateLoad(Type::getInt8PtrTy(Func.getContext()), GEP), IRB.CreateSub(zero, enckeyLoad), "IndirectBranchingTargetAddress");
-          if (!BI->isConditional() && isa<BinaryOperator>(RealIndex))
-            SubstituteImpl::substituteXor(dyn_cast<BinaryOperator>(RealIndex));
-          if (isa<BinaryOperator>(enckeyLoad))
-            SubstituteImpl::substituteXor(dyn_cast<BinaryOperator>(enckeyLoad));
         }
-        IndirectBrInst *indirBr = IndirectBrInst::Create(LI, BBs.size());
-        for (BasicBlock *BB : BBs)
-          indirBr->addDestination(BB);
-        ReplaceInstWithInst(BI, indirBr);
       }
+      if (EncryptJumpTarget) {
+        if (!BI->isConditional() && isa<BinaryOperator>(RealIndex))
+          SubstituteImpl::substituteXor(dyn_cast<BinaryOperator>(RealIndex));
+        if (isa<BinaryOperator>(enckeyLoad))
+          SubstituteImpl::substituteXor(dyn_cast<BinaryOperator>(enckeyLoad));
+      }
+      IndirectBrInst *indirBr = IndirectBrInst::Create(LI, BBs.size());
+      for (BasicBlock *BB : BBs)
+        indirBr->addDestination(BB);
+      ReplaceInstWithInst(BI, indirBr);
     }
     return true;
   }
