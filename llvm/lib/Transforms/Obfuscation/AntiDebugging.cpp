@@ -247,7 +247,7 @@ struct AntiDebugging : public ModulePass {
         CallInst::Create(IA, None, "", I);
       }
       else {
-        errs() << F.getParent()->getTargetTriple() << " Unsupported Inline Assembly AntiDebugging Target\n";
+        errs() << "Unsupported Inline Assembly AntiDebugging Target: " << F.getParent()->getTargetTriple() << "\n";
       }
     }
     return true;

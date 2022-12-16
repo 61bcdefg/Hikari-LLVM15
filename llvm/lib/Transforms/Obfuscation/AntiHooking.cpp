@@ -32,11 +32,7 @@
 #include "llvm/Transforms/Obfuscation/Obfuscation.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/ADT/Triple.h"
-#if LLVM_VERSION_MAJOR >= 11
 #include "llvm/Transforms/Obfuscation/compat/CallSite.h"
-#else
-#include "llvm/IR/CallSite.h"
-#endif
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -61,28 +57,21 @@ namespace llvm {
 struct AntiHook : public ModulePass {
   static char ID;
   bool flag;
-  bool opaquepointers;
   bool appleptrauth;
+  bool opaquepointers;
   bool hasobjcmethod;
-  bool initialized;
-  AntiHook() : ModulePass(ID) {
-    this->flag = true;
-    this->initialized = false;
-  }
-  AntiHook(bool flag) : ModulePass(ID) {
-    this->flag = flag;
-    this->initialized = false;
-  }
+  Triple triple;
+  AntiHook() : ModulePass(ID) { this->flag = true; }
+  AntiHook(bool flag) : ModulePass(ID) { this->flag = flag; }
   StringRef getPassName() const override { return "AntiHook"; }
-  bool initialize(Module &M) {
+  bool doInitialization(Module &M) {
     if (PreCompiledIRPath == "") {
       SmallString<32> Path;
       if (sys::path::home_directory(Path)) { // Stolen from LineEditor.cpp
         sys::path::append(Path, "Hikari");
-        Triple tri(M.getTargetTriple());
         sys::path::append(Path, "PrecompiledAntiHooking-" +
-                                    Triple::getArchTypeName(tri.getArch()) +
-                                    "-" + Triple::getOSTypeName(tri.getOS()) +
+                                    Triple::getArchTypeName(triple.getArch()) +
+                                    "-" + Triple::getOSTypeName(triple.getOS()) +
                                     ".bc");
         PreCompiledIRPath = Path.c_str();
       }
@@ -100,18 +89,18 @@ struct AntiHook : public ModulePass {
              << PreCompiledIRPath << "\n";
     }
     opaquepointers = !M.getContext().supportsTypedPointers();
-    appleptrauth = M.getModuleFlag("ptrauth.abi-version");
-
-    if (Triple(M.getTargetTriple()).getVendor() == Triple::VendorType::Apple) {
+    triple = Triple(M.getTargetTriple());
+    appleptrauth = triple.isArm64e();
+    if (triple.getVendor() == Triple::VendorType::Apple) {
       for (GlobalVariable &GV : M.globals()) {
         if (GV.hasName() && GV.hasInitializer() &&
             (GV.getName().startswith("_OBJC_$_INSTANCE_METHODS") ||
              GV.getName().startswith("_OBJC_$_CLASS_METHODS"))) {
-          this->hasobjcmethod = true;
+          hasobjcmethod = true;
           break;
         }
       }
-      if (this->hasobjcmethod) {
+      if (hasobjcmethod) {
         Type *Int8PtrTy = Type::getInt8PtrTy(M.getContext());
         M.getOrInsertFunction("objc_getClass",
                               FunctionType::get(Int8PtrTy, {Int8PtrTy}, false));
@@ -138,18 +127,13 @@ struct AntiHook : public ModulePass {
                               {Int8PtrTy, Int8PtrTy}, false));
       }
     }
-    this->initialized = true;
     return true;
   }
-
   bool runOnModule(Module &M) override {
-    Triple Tri(M.getTargetTriple());
     for (Function &F : M) {
       if (toObfuscate(flag, &F, "antihook")) {
         errs() << "Running AntiHooking On " << F.getName() << "\n";
-        if (!this->initialized)
-          initialize(M);
-        if (Tri.isAArch64()) {
+        if (triple.isAArch64()) {
           vector<Function *> calledFunctions;
           calledFunctions.emplace_back(&F);
           HandleInlineHookAArch64(&F, calledFunctions);
@@ -181,7 +165,7 @@ struct AntiHook : public ModulePass {
             }
       }
     }
-    if (this->hasobjcmethod) {
+    if (hasobjcmethod) {
       for (GlobalVariable &GV : M.globals()) {
         if (GV.hasName() && GV.hasInitializer() &&
             GV.getSection() != "llvm.ptrauth" &&
@@ -273,8 +257,8 @@ struct AntiHook : public ModulePass {
       if (AHCallBack) {
         IRBB.CreateCall(AHCallBack);
       } else {
-        Triple Tri(F->getParent()->getTargetTriple());
-        if (Tri.isOSDarwin() && Tri.getArch() == Triple::ArchType::aarch64) {
+        if (triple.isOSDarwin() &&
+            triple.getArch() == Triple::ArchType::aarch64) {
           string exitsvcasm = "mov w16, #1\n";
           exitsvcasm += "svc #" + to_string(cryptoutils->get_range(65536)) + "\n";
           InlineAsm *IA = InlineAsm::get(FunctionType::get(IRBB.getVoidTy(), false),
@@ -333,8 +317,7 @@ struct AntiHook : public ModulePass {
     if (AHCallBack) {
       IRBB.CreateCall(AHCallBack);
     } else {
-      Triple Tri(M->getTargetTriple());
-      if (Tri.isOSDarwin() && Tri.isAArch64()) {
+      if (triple.isOSDarwin() && triple.isAArch64()) {
         string exitsvcasm = "mov w16, #1\n";
         exitsvcasm += "svc #" + to_string(cryptoutils->get_range(65536)) + "\n";
         InlineAsm *IA =

@@ -396,7 +396,7 @@ struct BogusControlFlow : public FunctionPass {
       // randomly insert some instructions
       if (i->isBinaryOp()) { // binary instructions
         unsigned int opcode = i->getOpcode();
-        Instruction *op, *op1 = NULL;
+        Instruction *op, *op1 = nullptr;
         Twine *var = new Twine("_");
         // treat differently float or int
         // Binary int

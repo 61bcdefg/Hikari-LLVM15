@@ -109,7 +109,6 @@ struct FunctionWrapper : public ModulePass {
       for (Argument &arg : func->args()) {
         if (std::find(byvalArgNums.begin(), byvalArgNums.end(),
                       arg.getArgNo()) != byvalArgNums.end()) {
-          arg.addAttr(Attribute::ByVal);
           params.emplace_back(&arg);
         } else {
           AllocaInst *AI = nullptr;

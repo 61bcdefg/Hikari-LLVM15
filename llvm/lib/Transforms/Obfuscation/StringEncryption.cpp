@@ -190,6 +190,7 @@ struct StringEncryption : public ModulePass {
           break;
       }
     }
+    Globals2.clear();
     for (GlobalVariable *GV : rawStrings) {
       if (GV->getInitializer()->isZeroValue() ||
           GV->getInitializer()->isNullValue())
@@ -201,9 +202,9 @@ struct StringEncryption : public ModulePass {
       if (!isa<IntegerType>(memberType))
         continue;
       IntegerType *intType = cast<IntegerType>(memberType);
-      Constant *KeyConst = NULL;
-      Constant *EncryptedConst = NULL;
-      Constant *DummyConst = NULL;
+      Constant *KeyConst = nullptr;
+      Constant *EncryptedConst = nullptr;
+      Constant *DummyConst = nullptr;
       if (intType == Type::getInt8Ty(GV->getParent()->getContext())) {
         vector<uint8_t> keys;
         vector<uint8_t> encry;
@@ -352,9 +353,9 @@ struct StringEncryption : public ModulePass {
     // We'll add new terminator to jump C later
     BranchInst *newBr = BranchInst::Create(B);
     ReplaceInstWithInst(A->getTerminator(), newBr);
-    IRBuilder<> IRB(A->getFirstNonPHIOrDbgOrLifetime());
     // Insert DecryptionCode
     HandleDecryptionBlock(B, C, GV2Keys);
+    IRBuilder<> IRB(A->getFirstNonPHIOrDbgOrLifetime());
     // Add atomic load checking status in A
     LoadInst *LI = IRB.CreateLoad(StatusGV->getValueType(), StatusGV, "LoadEncryptionStatus");
     LI->setAtomic(AtomicOrdering::Acquire); // Will be released at the start of C
@@ -365,9 +366,8 @@ struct StringEncryption : public ModulePass {
     BranchInst::Create(B, C, condition, A);
     // Add StoreInst atomically in C start
     // No matter control flow is coming from A or B, the GVs must be decrypted
-    IRBuilder<> IRBC(C->getFirstNonPHIOrDbgOrLifetime());
-    StoreInst *SI = IRBC.CreateStore(
-        ConstantInt::get(Type::getInt32Ty(Func->getContext()), 1), StatusGV);
+    StoreInst *SI = new StoreInst(
+        ConstantInt::get(Type::getInt32Ty(Func->getContext()), 1), StatusGV, C->getFirstNonPHIOrDbgOrLifetime());
     SI->setAlignment(Align(4));
     SI->setAtomic(AtomicOrdering::Release); // Release the lock acquired in LI
   } // End of HandleFunction
@@ -390,12 +390,12 @@ struct StringEncryption : public ModulePass {
     *(GV->getParent()), newCS->getType(), false, GV->getLinkage(), newCS,
     name, nullptr, GV->getThreadLocalMode(),
     GV->getType()->getAddressSpace());
-      // Fix arm64e on Xcode LLVM and need to disable optimizations
-      if (GV->getParent()->getModuleFlag("ptrauth.abi-version")) {
+      // for arm64e target on Apple LLVM
+      if (Triple(GV->getParent()->getTargetTriple()).isArm64e()) {
         GlobalVariable *PtrauthGV = cast<GlobalVariable>(cast<ConstantExpr>(newCS->getOperand(0))->getOperand(0));
         if (PtrauthGV->getSection() == "llvm.ptrauth" && cast<GlobalVariable>(GV->getParent()->getContext().supportsTypedPointers() ? cast<ConstantExpr>(PtrauthGV->getInitializer()->getOperand(2))->getOperand(0) : PtrauthGV->getInitializer()->getOperand(2))->getGlobalIdentifier() != ObjcGV->getGlobalIdentifier()) {
           GlobalVariable *NewPtrauthGV = new GlobalVariable(*PtrauthGV->getParent(), PtrauthGV->getValueType(),
-                                                            PtrauthGV->isConstant(), PtrauthGV->getLinkage(),
+                                                            true, PtrauthGV->getLinkage(),
                                                             ConstantStruct::getAnon({(Constant *)PtrauthGV->getInitializer()->getOperand(0),
                                                                                      (ConstantInt *)PtrauthGV->getInitializer()->getOperand(1),
                                                                                      ConstantExpr::getPtrToInt(ObjcGV, Type::getInt64Ty(ObjcGV->getContext())),

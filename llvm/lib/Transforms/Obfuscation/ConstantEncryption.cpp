@@ -60,6 +60,14 @@ struct ConstantEncryption : public ModulePass {
   bool flag;
   ConstantEncryption(bool flag) : ModulePass(ID) { this->flag = flag; }
   ConstantEncryption() : ModulePass(ID) { this->flag = true; }
+  bool canEncryptConstant(Instruction *I) {
+    if (isa<IntrinsicInst>(I) || isa<GetElementPtrInst>(I) ||
+        isa<PHINode>(I) || I->isAtomic())
+      return false;
+    if (!(cryptoutils->get_range(100) <= ObfProbRate))
+      return false;
+    return true;
+  }
   bool runOnModule(Module &M) override {
     if (ObfProbRate > 100) {
       errs() << "ConstantEncryption application instruction percentage "
@@ -72,9 +80,7 @@ struct ConstantEncryption : public ModulePass {
         int times = ObfTimes;
         while (times) {
           for (Instruction &I : instructions(F)) {
-            if (isa<IntrinsicInst>(&I) || isa<GetElementPtrInst>(&I) || isa<PHINode>(&I) || I.isAtomic())
-              continue;
-            if (!(cryptoutils->get_range(100) <= ObfProbRate))
+            if (!canEncryptConstant(&I))
               continue;
             for (unsigned i = 0; i < I.getNumOperands(); i++) {
               if (isa<SwitchInst>(&I) && i != 0)
@@ -92,10 +98,7 @@ struct ConstantEncryption : public ModulePass {
           }
           if (ConstToGV)
             for (Instruction &I : instructions(F)) {
-              if (isa<IntrinsicInst>(&I) || isa<GetElementPtrInst>(&I) ||
-                  isa<PHINode>(&I) || I.isAtomic())
-                continue;
-              if (!(cryptoutils->get_range(100) <= ObfProbRate))
+              if (!canEncryptConstant(&I))
                 continue;
               for (unsigned int i = 0; i < I.getNumOperands(); i++)
                 if (ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand(i))) {
@@ -123,24 +126,25 @@ struct ConstantEncryption : public ModulePass {
         PairConstantInt(CI);
     ConstantInt *XORKey = keyandnew.first;
     ConstantInt *newGVInit = keyandnew.second;
+    if (!XORKey || !newGVInit)
+      return;
     GVPtr->setInitializer(newGVInit);
     for (User *U : GVPtr->users()) {
+      BinaryOperator *XORInst = nullptr;
       if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
-        BinaryOperator *XORInst =
+        XORInst =
             BinaryOperator::Create(Instruction::Xor, LI, XORKey);
         XORInst->insertAfter(LI);
         LI->replaceAllUsesWith(XORInst);
         XORInst->setOperand(0, LI);
-        if (SubstituteXor)
-          SubstituteImpl::substituteXor(XORInst);
       } else if (StoreInst *SI = dyn_cast<StoreInst>(U)) {
-        BinaryOperator *XORInst = BinaryOperator::Create(
+        XORInst = BinaryOperator::Create(
             Instruction::Xor, SI->getOperand(0), XORKey);
         XORInst->insertAfter(SI);
         SI->replaceUsesOfWith(SI->getOperand(0), XORInst);
-        if (SubstituteXor)
-          SubstituteImpl::substituteXor(XORInst);
       }
+      if (SubstituteXor)
+        SubstituteImpl::substituteXor(XORInst);
     }
   }
 
@@ -149,6 +153,8 @@ struct ConstantEncryption : public ModulePass {
         PairConstantInt(cast<ConstantInt>(I->getOperand(opindex)));
     ConstantInt *Key = keyandnew.first;
     ConstantInt *New = keyandnew.second;
+    if (!Key || !New)
+      return;
     BinaryOperator *NewOperand = BinaryOperator::Create(Instruction::Xor, New,
                       Key, "", I);
     I->setOperand(opindex, NewOperand);
@@ -159,14 +165,16 @@ struct ConstantEncryption : public ModulePass {
   pair<ConstantInt * /*key*/, ConstantInt * /*new*/> PairConstantInt(ConstantInt *C) {
     IntegerType *IT = cast<IntegerType>(C->getType());
     uint64_t K;
-    if (IT->getBitWidth() == 8)
+    if (IT->getBitWidth() == 1 || IT->getBitWidth() == 8)
       K = cryptoutils->get_uint8_t();
     else if (IT->getBitWidth() == 16)
       K = cryptoutils->get_uint16_t();
     else if (IT->getBitWidth() == 32)
       K = cryptoutils->get_uint32_t();
-    else
+    else if (IT->getBitWidth() == 64)
       K = cryptoutils->get_uint64_t();
+    else
+      return make_pair(nullptr, nullptr);
     ConstantInt *CI = cast<ConstantInt>(ConstantInt::get(IT, K ^ C->getValue()));
     return make_pair(ConstantInt::get(IT, K), CI);
   }

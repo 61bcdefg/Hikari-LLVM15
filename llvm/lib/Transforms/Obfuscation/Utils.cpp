@@ -81,8 +81,8 @@ void FixBasicBlockConstantExpr(BasicBlock *BB) {
   // Things to note:
   // - Phis must be placed at BB start so CEs must be placed prior to current BB
   assert(!BB->empty() && "BasicBlock is empty!");
-  assert((BB->getParent() != NULL) && "BasicBlock must be in a Function!");
-  Instruction* FunctionInsertPt=&*(BB->getParent()->getEntryBlock().getFirstInsertionPt());
+  assert(BB->getParent() && "BasicBlock must be in a Function!");
+  Instruction* FunctionInsertPt = &*(BB->getParent()->getEntryBlock().getFirstInsertionPt());
 
   for (Instruction &I : *BB) {
     if (isa<LandingPadInst>(I) || isa<FuncletPadInst>(I) || isa<IntrinsicInst>(I))
@@ -171,7 +171,7 @@ std::string readAnnotate(Function *f) {
   GlobalVariable *glob =
       f->getParent()->getGlobalVariable("llvm.global.annotations");
 
-  if (glob != NULL) {
+  if (glob) {
     // Get the array
     if (ConstantArray *ca = dyn_cast<ConstantArray>(glob->getInitializer())) {
       for (unsigned i = 0; i < ca->getNumOperands(); ++i) {
