@@ -171,6 +171,7 @@ namespace {
 struct BogusControlFlow : public FunctionPass {
   static char ID; // Pass identification
   bool flag;
+  vector<ICmpInst *> needtoedit;
   BogusControlFlow() : FunctionPass(ID) { this->flag = true; }
   BogusControlFlow(bool flag) : FunctionPass(ID) { this->flag = flag; }
   /* runOnFunction
@@ -302,6 +303,7 @@ struct BogusControlFlow : public FunctionPass {
     // The always true condition. End of the first block
     ICmpInst *condition =
         new ICmpInst(*basicBlock, ICmpInst::ICMP_EQ, LHS, RHS,"BCFPlaceHolderPred");
+    needtoedit.emplace_back(condition);
 
     // Jump to the original basic block if the condition is true or
     // to the altered block if false.
@@ -327,6 +329,7 @@ struct BogusControlFlow : public FunctionPass {
     // We add at the end a new always true condition
     ICmpInst *condition2 =
         new ICmpInst(*originalBB, CmpInst::ICMP_EQ, LHS, RHS,"BCFPlaceHolderPred");
+    needtoedit.emplace_back(condition2);
     // Do random behavior to avoid pattern recognition.
     // This is achieved by jumping to a random BB
     switch (llvm::cryptoutils->get_uint16_t() % 2) {
@@ -612,14 +615,13 @@ struct BogusControlFlow : public FunctionPass {
            ++fi) {
         Instruction *tbb = fi->getTerminator();
         if (tbb->getOpcode() == Instruction::Br) {
-          BranchInst *br = (BranchInst *)(tbb);
+          BranchInst *br = (BranchInst *)tbb;
           if (br->isConditional()) {
             ICmpInst *cond = (ICmpInst *)br->getCondition();
-            if (cond->getOpcode() == Instruction::ICmp) {
-              if (cond->getPredicate() == ICmpInst::ICMP_EQ && cond->getName().startswith("BCFPlaceHolderPred")) {
-                toDelete.emplace_back(cond); // The condition
-                toEdit.emplace_back(tbb);    // The branch using the condition
-              }
+            if (std::find(needtoedit.begin(), needtoedit.end(), cond) !=
+                needtoedit.end()) {
+              toDelete.emplace_back(cond); // The condition
+              toEdit.emplace_back(tbb);    // The branch using the condition
             }
           }
         }

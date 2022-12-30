@@ -40,7 +40,7 @@ CryptoUtils::~CryptoUtils() {
 }
 void CryptoUtils::prng_seed() {
   using namespace std::chrono;
-  std::uint_fast64_t ms = duration_cast< milliseconds >(system_clock::now().time_since_epoch()).count();
+  std::uint_fast64_t ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
   errs() << format("std::mt19937_64 seeded with current timestamp: %" PRIu64"",ms) << "\n";
   eng = new std::mt19937_64(ms);
 }
