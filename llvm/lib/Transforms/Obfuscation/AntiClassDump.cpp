@@ -69,7 +69,7 @@ struct AntiClassDump : public ModulePass {
     M.getOrInsertFunction("class_getName", class_getName_Type);
     FunctionType *objc_getMetaClass_Type = FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
     M.getOrInsertFunction("objc_getMetaClass", objc_getMetaClass_Type);
-    appleptrauth = triple.isArm64e();
+    appleptrauth = hasApplePtrauth(&M);
     opaquepointers = !M.getContext().supportsTypedPointers();
     return true;
   }

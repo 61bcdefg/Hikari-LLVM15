@@ -5,6 +5,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Module.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/NoFolder.h"
@@ -30,6 +31,12 @@ bool valueEscapes(Instruction *Inst) {
     }
     return true;
   }
+  return false;
+}
+bool hasApplePtrauth(Module *M) {
+  for (GlobalVariable &GV : M->globals())
+    if (GV.getSection() == "llvm.ptrauth")
+      return true;
   return false;
 }
 #if 0

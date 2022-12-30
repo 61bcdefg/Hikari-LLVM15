@@ -61,10 +61,16 @@ struct AntiHook : public ModulePass {
   bool opaquepointers;
   bool hasobjcmethod;
   Triple triple;
-  AntiHook() : ModulePass(ID) { this->flag = true; }
-  AntiHook(bool flag) : ModulePass(ID) { this->flag = flag; }
+  AntiHook() : ModulePass(ID) {
+    this->flag = true;
+    this->hasobjcmethod = false;
+  }
+  AntiHook(bool flag) : ModulePass(ID) {
+    this->flag = flag;
+    this->hasobjcmethod = false;
+  }
   StringRef getPassName() const override { return "AntiHook"; }
-  bool doInitialization(Module &M) {
+  bool doInitialization(Module &M) override {
     if (PreCompiledIRPath == "") {
       SmallString<32> Path;
       if (sys::path::home_directory(Path)) { // Stolen from LineEditor.cpp
@@ -89,8 +95,8 @@ struct AntiHook : public ModulePass {
              << PreCompiledIRPath << "\n";
     }
     opaquepointers = !M.getContext().supportsTypedPointers();
+    appleptrauth = hasApplePtrauth(&M);
     triple = Triple(M.getTargetTriple());
-    appleptrauth = triple.isArm64e();
     if (triple.getVendor() == Triple::VendorType::Apple) {
       for (GlobalVariable &GV : M.globals()) {
         if (GV.hasName() && GV.hasInitializer() &&
