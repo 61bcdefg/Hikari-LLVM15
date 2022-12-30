@@ -127,9 +127,15 @@ public:
   /// name on CallBase, does not modify the type!
   void setCalledFunction(Value *V) {
     assert(getInstruction() && "Not a call, callbr, or invoke instruction!");
+#if LLVM_VERSION_MAJOR >= 15
+    assert(cast<PointerType>(V->getType())->isOpaqueOrPointeeTypeMatches(
+                   cast<CallBase>(getInstruction())->getFunctionType()) &&
+           "New callee type does not match FunctionType on call");
+#else
     assert(cast<PointerType>(V->getType())->getElementType() ==
                cast<CallBase>(getInstruction())->getFunctionType() &&
            "New callee type does not match FunctionType on call");
+#endif
     *getCallee() = V;
   }
 

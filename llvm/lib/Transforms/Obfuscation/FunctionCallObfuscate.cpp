@@ -45,13 +45,16 @@ struct FunctionCallObfuscate : public FunctionPass {
 #endif
   bool flag;
   bool initialized;
+  bool objchandled;
   FunctionCallObfuscate() : FunctionPass(ID) {
     this->flag = true;
     this->initialized = false;
+    this->objchandled = false;
   }
   FunctionCallObfuscate(bool flag) : FunctionPass(ID) {
     this->flag = flag;
     this->initialized = false;
+    this->objchandled = false;
   }
   StringRef getPassName() const override {
     return "FunctionCallObfuscate";
@@ -165,6 +168,7 @@ struct FunctionCallObfuscate : public FunctionPass {
     }
     for (Instruction *I : toErase)
       I->eraseFromParent();
+    objchandled = true;
   }
   bool runOnFunction(Function &F) override {
     // Construct Function Prototypes
@@ -180,7 +184,8 @@ struct FunctionCallObfuscate : public FunctionPass {
     if (!this->initialized)
       initialize(*M);
     FixFunctionConstantExpr(&F);
-    HandleObjC(*M);
+    if (!this->objchandled)
+      HandleObjC(*M);
     Type *Int32Ty = Type::getInt32Ty(M->getContext());
     Type *Int8PtrTy = Type::getInt8PtrTy(M->getContext());
     // ObjC Runtime Declarations

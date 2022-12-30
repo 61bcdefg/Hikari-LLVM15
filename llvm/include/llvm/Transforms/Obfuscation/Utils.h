@@ -14,6 +14,7 @@
 void fixStack(llvm::Function *f);
 std::string readAnnotate(llvm::Function *f);
 bool toObfuscate(bool flag, llvm::Function *f, std::string attribute);
+bool hasApplePtrauth(llvm::Module *M);
 void FixBasicBlockConstantExpr(llvm::BasicBlock *BB);
 void FixFunctionConstantExpr(llvm::Function *Func);
 #if 0
