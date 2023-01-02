@@ -300,9 +300,13 @@ struct StringEncryption : public ModulePass {
       GlobalVariable *oldrawString = cast<GlobalVariable>(CS->getOperand(2)->stripPointerCasts());
       if (old2new.find(oldrawString) == old2new.end()) // Filter out zero initializers
         continue;
-      GlobalVariable *EncryptedOCGV = ObjectivCString(GV, "EncryptedStringObjC", oldrawString, old2new[oldrawString].first, CS);
+      GlobalVariable *EncryptedOCGV =
+          ObjectiveCString(GV, "EncryptedStringObjC", oldrawString,
+                           old2new[oldrawString].first, CS);
       transformedgv.emplace_back(EncryptedOCGV);
-      GlobalVariable *DecryptSpaceOCGV = ObjectivCString(GV, "DecryptSpaceObjC", oldrawString, old2new[oldrawString].second, CS);
+      GlobalVariable *DecryptSpaceOCGV =
+          ObjectiveCString(GV, "DecryptSpaceObjC", oldrawString,
+                           old2new[oldrawString].second, CS);
       transformedgv.emplace_back(DecryptSpaceOCGV);
       old2new[GV] = make_pair(EncryptedOCGV, DecryptSpaceOCGV);
     } // End prepare ObjC new GV
@@ -373,7 +377,7 @@ struct StringEncryption : public ModulePass {
     SI->setAtomic(AtomicOrdering::Release); // Release the lock acquired in LI
   } // End of HandleFunction
 
-  GlobalVariable *ObjectivCString(GlobalVariable *GV, string name, GlobalVariable *oldrawString, GlobalVariable *newString, ConstantStruct *CS) {
+  GlobalVariable *ObjectiveCString(GlobalVariable *GV, string name, GlobalVariable *oldrawString, GlobalVariable *newString, ConstantStruct *CS) {
       Value *zero = ConstantInt::get(Type::getInt32Ty(GV->getContext()), 0);
       vector<Constant *> vals;
       vals.emplace_back(CS->getOperand(0));
