@@ -19,17 +19,16 @@ bool valueEscapes(Instruction *Inst) {
 
   for (User *U : Inst->users()) {
     Instruction *I = cast<Instruction>(U);
-    if (!dyn_cast<PHINode>(I)) {
-      if (I->getParent() != Inst->getParent()) {
+    if (I->getParent() != Inst->getParent()) {
+      if (!isa<PHINode>(I)) {
         if (isa<StoreInst>(I) && isa<InvokeInst>(Inst))
           if (I->getParent() == dyn_cast<InvokeInst>(Inst)->getNormalDest() &&
               isa<AllocaInst>(I->getOperand(1)))
             continue;
         return true;
       }
-      continue;
+      return true;
     }
-    return true;
   }
   return false;
 }

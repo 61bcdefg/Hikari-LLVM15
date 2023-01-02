@@ -207,6 +207,7 @@ struct AntiHook : public ModulePass {
     }
     return true;
   } // End runOnFunction
+
   void HandleInlineHookAArch64(Function *F, vector<Function *> &FunctionsToDetect) {
     // First we locate an insert point to check ourself
     // The following is equivalent to
@@ -258,30 +259,7 @@ struct AntiHook : public ModulePass {
         SI->addCase(ConstantInt::get(IntegerType::get(F->getContext(), 32), sig), B);
         SI2->addCase(ConstantInt::get(IntegerType::get(F->getContext(), 32), sig), B);
       }
-
-      Function *AHCallBack = F->getParent()->getFunction("AHCallBack");
-      if (AHCallBack) {
-        IRBB.CreateCall(AHCallBack);
-      } else {
-        if (triple.isOSDarwin() &&
-            triple.getArch() == Triple::ArchType::aarch64) {
-          string exitsvcasm = "mov w16, #1\n";
-          exitsvcasm += "svc #" + to_string(cryptoutils->get_range(65536)) + "\n";
-          InlineAsm *IA = InlineAsm::get(FunctionType::get(IRBB.getVoidTy(), false),
-                             exitsvcasm, "", true, false);
-          IRBB.CreateCall(IA);
-        }
-        else {
-          // First. Build up declaration for abort();
-          FunctionType *ABFT =
-              FunctionType::get(Type::getVoidTy(A->getContext()), false);
-          Function *abort_declare = cast<Function>(
-              F->getParent()->getOrInsertFunction("abort", ABFT).getCallee());
-          abort_declare->addFnAttr(Attribute::AttrKind::NoReturn);
-          IRBB.CreateCall(abort_declare);
-        }
-      }
-      IRBB.CreateBr(C); // Insert a new br into the end of B to jump back to C
+      CreateCallbackAndJumpBack(&IRBB, C);
     }
   }
 
@@ -318,28 +296,31 @@ struct AntiHook : public ModulePass {
         IRBA.CreateICmpEQ(IRBA.CreateBitCast(GetMethodImp, Int8PtrTy),
                           ConstantExpr::getBitCast(ObjcMethodImp, Int8PtrTy));
     IRBA.CreateCondBr(IcmpEq, C, B);
-
+    CreateCallbackAndJumpBack(&IRBB, C);
+  }
+  void CreateCallbackAndJumpBack(IRBuilder<> *IRBB, BasicBlock *C) {
+    Module *M = C->getModule();
     Function *AHCallBack = M->getFunction("AHCallBack");
     if (AHCallBack) {
-      IRBB.CreateCall(AHCallBack);
+      IRBB->CreateCall(AHCallBack);
     } else {
       if (triple.isOSDarwin() && triple.isAArch64()) {
         string exitsvcasm = "mov w16, #1\n";
         exitsvcasm += "svc #" + to_string(cryptoutils->get_range(65536)) + "\n";
         InlineAsm *IA =
-            InlineAsm::get(FunctionType::get(IRBB.getVoidTy(), false),
+            InlineAsm::get(FunctionType::get(IRBB->getVoidTy(), false),
                            exitsvcasm, "", true, false);
-        IRBB.CreateCall(IA);
+        IRBB->CreateCall(IA);
       } else {
-        // First. Build up declaration for abort();
         FunctionType *ABFT =
-            FunctionType::get(Type::getVoidTy(A->getContext()), false);
-        Function *abort_declare = cast<Function>(M->getOrInsertFunction("abort", ABFT).getCallee());
+            FunctionType::get(Type::getVoidTy(M->getContext()), false);
+        Function *abort_declare =
+            cast<Function>(M->getOrInsertFunction("abort", ABFT).getCallee());
         abort_declare->addFnAttr(Attribute::AttrKind::NoReturn);
-        IRBB.CreateCall(abort_declare);
+        IRBB->CreateCall(abort_declare);
       }
     }
-    IRBB.CreateBr(C); // Insert a new br into the end of B to jump back to C
+    IRBB->CreateBr(C);
   }
 };
 } // namespace llvm

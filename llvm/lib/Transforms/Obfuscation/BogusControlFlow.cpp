@@ -135,10 +135,15 @@ static cl::opt<int> MinNumberOfJunkAssembly(
     "bcf_junkasm_minnum",
     cl::desc("The minimum number of junk assembliy per altered basic block"),
     cl::value_desc("min number of junk assembly"), cl::init(1), cl::Optional);
+static cl::opt<bool> CreateFunctionForOpaquePredicate(
+    "bcf_createfunc",
+    cl::desc("Create function for each opaque predicate"),
+    cl::value_desc("create function"), cl::init(false), cl::Optional);
 
 static Instruction::BinaryOps ops[] = {Instruction::Add, Instruction::Sub,
                                        Instruction::And, Instruction::Or,
-                                       Instruction::Xor};
+                                       Instruction::Xor, Instruction::Mul,
+                                       Instruction::UDiv};
 static CmpInst::Predicate preds[] = {CmpInst::ICMP_EQ,  CmpInst::ICMP_NE,
                                      CmpInst::ICMP_UGT, CmpInst::ICMP_UGE,
                                      CmpInst::ICMP_ULT, CmpInst::ICMP_ULE};
@@ -204,9 +209,11 @@ struct BogusControlFlow : public FunctionPass {
     if (toObfuscate(flag, &F, "bcf")) {
       if (F.isPresplitCoroutine())
         return false;
+      if (F.getName().startswith("HikariBCFOpaquePredicateFunction"))
+        return false;
       errs() << "Running BogusControlFlow On " << F.getName() << "\n";
       bogus(F);
-      doF(*F.getParent());
+      doF(F);
     }
 
     return true;
@@ -332,7 +339,7 @@ struct BogusControlFlow : public FunctionPass {
     needtoedit.emplace_back(condition2);
     // Do random behavior to avoid pattern recognition.
     // This is achieved by jumping to a random BB
-    switch (llvm::cryptoutils->get_uint16_t() % 2) {
+    switch (llvm::cryptoutils->get_range(2)) {
     case 0: {
       BranchInst::Create(originalBBpart2, originalBB, condition2, originalBB);
       break;
@@ -586,7 +593,7 @@ struct BogusControlFlow : public FunctionPass {
     if (JunkAssembly) {
       string junk = "";
       for (uint32_t i = cryptoutils->get_range(MinNumberOfJunkAssembly, MaxNumberOfJunkAssembly); i > 0; i--)
-        junk += ".long " + to_string(cryptoutils->get_range((uint32_t)1145141919810)) + "\n";
+        junk += ".long " + to_string(cryptoutils->get_uint32_t()) + "\n";
       InlineAsm *IA = InlineAsm::get(
           FunctionType::get(Type::getVoidTy(alteredBB->getContext()), false), junk, "", true, false);
       CallInst::Create(IA, None, "", &*alteredBB->getFirstInsertionPt());
@@ -594,123 +601,122 @@ struct BogusControlFlow : public FunctionPass {
     return alteredBB;
   } // end of createAlteredBasicBlock()
 
-  /* doFinalization
+  /* doF
    *
-   * Overwrite FunctionPass method to apply the transformations to the whole
-   * module. This part obfuscate all the always true predicates of the module.
-   * More precisely, the condition which predicate is FCMP_TRUE.
-   * It also remove all the functions' basic blocks' and instructions' names.
+   * This part obfuscate the always true predicates generated in addBogusFlow() of the function.
    */
-  bool doF(Module &M) {
-    // In this part we extract all always-true predicate and replace them with
-    // opaque predicate: For this, we declare two global values: x and y, and
-    // replace the FCMP_TRUE predicate with (y < 10 || x * (x + 1) % 2 == 0) A
-    // better way to obfuscate the predicates would be welcome. In the meantime
-    // we will erase the name of the basic blocks, the instructions and the
-    // functions.
+  bool doF(Function &F) {
     vector<Instruction *> toEdit, toDelete;
     // Looking for the conditions and branches to transform
-    for (Module::iterator mi = M.begin(), me = M.end(); mi != me; ++mi) {
-      for (Function::iterator fi = mi->begin(), fe = mi->end(); fi != fe;
-           ++fi) {
-        Instruction *tbb = fi->getTerminator();
-        if (tbb->getOpcode() == Instruction::Br) {
-          BranchInst *br = (BranchInst *)tbb;
-          if (br->isConditional()) {
-            ICmpInst *cond = (ICmpInst *)br->getCondition();
-            if (std::find(needtoedit.begin(), needtoedit.end(), cond) !=
-                needtoedit.end()) {
-              toDelete.emplace_back(cond); // The condition
-              toEdit.emplace_back(tbb);    // The branch using the condition
-            }
+    for (BasicBlock &BB : F) {
+      Instruction *tbb = BB.getTerminator();
+      if (BranchInst *br = dyn_cast<BranchInst>(tbb)) {
+        if (br->isConditional()) {
+          ICmpInst *cond = dyn_cast<ICmpInst>(br->getCondition());
+          if (cond && std::find(needtoedit.begin(), needtoedit.end(), cond) !=
+              needtoedit.end()) {
+            toDelete.emplace_back(cond); // The condition
+            toEdit.emplace_back(tbb);    // The branch using the condition
           }
         }
       }
     }
+    Module &M = *F.getParent();
+    Type *I1Ty = Type::getInt1Ty(M.getContext());
+    Type *I32Ty = Type::getInt32Ty(M.getContext());
     // Replacing all the branches we found
-    for (std::vector<Instruction *>::iterator i = toEdit.begin();
-         i != toEdit.end(); ++i) {
+    for (Instruction *i : toEdit) {
       // Previously We Use LLVM EE To Calculate LHS and RHS
       // Since IRBuilder<> uses ConstantFolding to fold constants.
       // The return instruction is already returning constants
       // The variable names below are the artifact from the Emulation Era
-      Type *I32Ty = Type::getInt32Ty(M.getContext());
-      Module emuModule("HikariBCFEmulator", M.getContext());
-      emuModule.setDataLayout(M.getDataLayout());
-      emuModule.setTargetTriple(M.getTargetTriple());
       Function *emuFunction =
           Function::Create(FunctionType::get(I32Ty, false),
                            GlobalValue::LinkageTypes::PrivateLinkage,
-                           "BeginExecution", &emuModule);
-      BasicBlock *EntryBlock =
-          BasicBlock::Create(M.getContext(), "", emuFunction);
+                           "HikariBCFEmuFunction", M);
+      BasicBlock *emuEntryBlock =
+          BasicBlock::Create(emuFunction->getContext(), "", emuFunction);
 
-      Instruction *tmp = &*((*i)->getParent()->getFirstInsertionPt());
-      IRBuilder<> IRBReal(tmp);
-      IRBuilder<> IRBEmu(EntryBlock);
+      Function *opFunction = nullptr;
+      IRBuilder<> *IRBOp = nullptr;
+      if (CreateFunctionForOpaquePredicate) {
+        opFunction = Function::Create(FunctionType::get(I1Ty, false),
+                                      GlobalValue::LinkageTypes::PrivateLinkage,
+                                      "HikariBCFOpaquePredicateFunction", M);
+        BasicBlock *opTrampBlock =
+            BasicBlock::Create(opFunction->getContext(), "", opFunction);
+        BasicBlock *opEntryBlock =
+            BasicBlock::Create(opFunction->getContext(), "", opFunction);
+        // Insert a br to make it can be obfuscated by IndirectBranch
+        BranchInst::Create(opEntryBlock, opTrampBlock);
+        IRBOp = new IRBuilder<>(opEntryBlock);
+      }
+      Instruction *tmp = &*(i->getParent()->getFirstNonPHIOrDbgOrLifetime());
+      IRBuilder<> *IRBReal = new IRBuilder<>(tmp);
+      IRBuilder<> IRBEmu(emuEntryBlock);
       // First,Construct a real RHS that will be used in the actual condition
       Constant *RealRHS = ConstantInt::get(I32Ty, cryptoutils->get_uint32_t());
       // Prepare Initial LHS and RHS to bootstrap the emulator
-      Constant *LHSC = ConstantInt::get(I32Ty, cryptoutils->get_uint32_t());
-      Constant *RHSC = ConstantInt::get(I32Ty, cryptoutils->get_uint32_t());
+      Constant *LHSC = ConstantInt::get(I32Ty, cryptoutils->get_range(1, UINT32_MAX));
+      Constant *RHSC = ConstantInt::get(I32Ty, cryptoutils->get_range(1, UINT32_MAX));
       GlobalVariable *LHSGV =
           new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false,
                              GlobalValue::PrivateLinkage, LHSC, "LHSGV");
       GlobalVariable *RHSGV =
           new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false,
                              GlobalValue::PrivateLinkage, RHSC, "RHSGV");
-      LoadInst *LHS = IRBReal.CreateLoad(LHSGV->getValueType(), LHSGV, "Initial LHS");
-      LoadInst *RHS = IRBReal.CreateLoad(RHSGV->getValueType(), RHSGV, "Initial LHS");
+      LoadInst *LHS =
+          (CreateFunctionForOpaquePredicate ? IRBOp : IRBReal)
+              ->CreateLoad(LHSGV->getValueType(), LHSGV, "Initial LHS");
+      LoadInst *RHS =
+          (CreateFunctionForOpaquePredicate ? IRBOp : IRBReal)
+              ->CreateLoad(RHSGV->getValueType(), RHSGV, "Initial LHS");
 
       // To Speed-Up Evaluation
       Value *emuLHS = LHSC;
       Value *emuRHS = RHSC;
-      Instruction::BinaryOps initialOp = ops[llvm::cryptoutils->get_uint32_t() %
-                                             (sizeof(ops) / sizeof(ops[0]))];
+      Instruction::BinaryOps initialOp = ops[llvm::cryptoutils->get_range(sizeof(ops) / sizeof(ops[0]))];
       Value *emuLast =
           IRBEmu.CreateBinOp(initialOp, emuLHS, emuRHS, "EmuInitialCondition");
-      Value *Last =
-          IRBReal.CreateBinOp(initialOp, LHS, RHS, "InitialCondition");
+      Value *Last = (CreateFunctionForOpaquePredicate ? IRBOp : IRBReal)
+                        ->CreateBinOp(initialOp, LHS, RHS, "InitialCondition");
       for (int i = 0; i < ConditionExpressionComplexity; i++) {
-        Constant *newTmp = ConstantInt::get(I32Ty, cryptoutils->get_uint32_t());
-        Instruction::BinaryOps initialOp =
-            ops[llvm::cryptoutils->get_uint32_t() %
-                (sizeof(ops) / sizeof(ops[0]))];
-        emuLast = IRBEmu.CreateBinOp(initialOp, emuLast, newTmp,
+        Constant *newTmp = ConstantInt::get(I32Ty, cryptoutils->get_range(1, UINT32_MAX));
+        Instruction::BinaryOps initialOp2 =
+            ops[llvm::cryptoutils->get_range(sizeof(ops) / sizeof(ops[0]))];
+        emuLast = IRBEmu.CreateBinOp(initialOp2, emuLast, newTmp,
                                      "EmuInitialCondition");
-        Last = IRBReal.CreateBinOp(initialOp, Last, newTmp, "InitialCondition");
+        Last = (CreateFunctionForOpaquePredicate ? IRBOp : IRBReal)->CreateBinOp(initialOp2, Last, newTmp, "InitialCondition");
       }
       // Randomly Generate Predicate
-      CmpInst::Predicate pred = preds[llvm::cryptoutils->get_uint32_t() %
-                                      (sizeof(preds) / sizeof(preds[0]))];
-      Last = IRBReal.CreateICmp(pred, Last, RealRHS);
+      CmpInst::Predicate pred = preds[llvm::cryptoutils->get_range(sizeof(preds) / sizeof(preds[0]))];
+      if (CreateFunctionForOpaquePredicate) {
+        IRBOp->CreateRet(IRBOp->CreateICmp(pred, Last, RealRHS));
+        Last = IRBReal->CreateCall(opFunction);
+      }
+      else
+        Last = IRBReal->CreateICmp(pred, Last, RealRHS);
       emuLast = IRBEmu.CreateICmp(pred, emuLast, RealRHS);
       ReturnInst *RI = IRBEmu.CreateRet(emuLast);
       ConstantInt *emuCI = cast<ConstantInt>(RI->getReturnValue());
-      uint64_t emulateResult = emuCI->getZExtValue();
-      vector<BasicBlock *> BBs; // Start To Prepare IndirectBranching
+      APInt emulateResult = emuCI->getValue();
       if (emulateResult == 1) {
         // Our ConstantExpr evaluates to true;
-
-        BranchInst::Create(((BranchInst *)*i)->getSuccessor(0),
-                           ((BranchInst *)*i)->getSuccessor(1), (Value *)Last,
-                           ((BranchInst *)*i)->getParent());
+        BranchInst::Create(((BranchInst *)i)->getSuccessor(0),
+                           ((BranchInst *)i)->getSuccessor(1), Last,
+                           i->getParent());
       } else {
         // False, swap operands
-
-        BranchInst::Create(((BranchInst *)*i)->getSuccessor(1),
-                           ((BranchInst *)*i)->getSuccessor(0), (Value *)Last,
-                           ((BranchInst *)*i)->getParent());
+        BranchInst::Create(((BranchInst *)i)->getSuccessor(1),
+                           ((BranchInst *)i)->getSuccessor(0), Last,
+                           i->getParent());
       }
-      EntryBlock->eraseFromParent();
       emuFunction->eraseFromParent();
-      (*i)->eraseFromParent(); // erase the branch
+      i->eraseFromParent(); // erase the branch
     }
     // Erase all the associated conditions we found
-    for (std::vector<Instruction *>::iterator i = toDelete.begin();
-         i != toDelete.end(); ++i)
-      (*i)->eraseFromParent();
-
+    for (Instruction *i : toDelete)
+      i->eraseFromParent();
     return true;
   } // end of doFinalization
 };  // end of struct BogusControlFlow : public FunctionPass

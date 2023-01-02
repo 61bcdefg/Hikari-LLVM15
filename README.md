@@ -133,6 +133,10 @@ AntiDebugging PreCompiled IR文件的路径
 
 在虚假块中花指令的最大数量。默认为3
 
+-bcf_createfunc
+
+使用函数封装不透明谓词。默认关闭
+
 #### Flattening (修改过)
 
 经过修改，支持混淆存在C++异常处理的函数

@@ -9,9 +9,6 @@
 using namespace llvm;
 using namespace std;
 
-// Stats
-STATISTIC(Split, "Basicblock splitted");
-
 static cl::opt<int> SplitNum("split_num", cl::init(2),
                              cl::desc("Split <split_num> time each BB"));
 
@@ -51,7 +48,6 @@ bool SplitBasicBlock::runOnFunction(Function &F) {
   if (toObfuscate(flag, tmp, "split")) {
     errs() << "Running BasicBlockSplit On " << tmp->getName() << "\n";
     split(tmp);
-    ++Split;
   }
 
   return true;
@@ -79,7 +75,7 @@ void SplitBasicBlock::split(Function *f) {
 
     // Generate splits point
     std::vector<int> test;
-    for (unsigned i = 1; i < curr->size(); ++i)
+    for (size_t i = 1; i < curr->size(); ++i)
       test.emplace_back(i);
 
     // Shuffle
@@ -113,8 +109,6 @@ void SplitBasicBlock::split(Function *f) {
 
       toSplit = toSplit->splitBasicBlock(it, toSplit->getName() + ".split");
     }
-
-    ++Split;
   }
 }
 
@@ -136,5 +130,5 @@ bool SplitBasicBlock::containsSwiftError(BasicBlock *b) {
 void SplitBasicBlock::shuffle(std::vector<int> &vec) {
   int n = vec.size();
   for (int i = n - 1; i > 0; --i)
-    std::swap(vec[i], vec[cryptoutils->get_uint32_t() % (i + 1)]);
+    std::swap(vec[i], vec[cryptoutils->get_range(i + 1)]);
 }
