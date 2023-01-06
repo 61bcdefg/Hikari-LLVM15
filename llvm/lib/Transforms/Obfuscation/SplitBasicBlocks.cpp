@@ -55,7 +55,7 @@ bool SplitBasicBlock::runOnFunction(Function &F) {
 
 void SplitBasicBlock::split(Function *f) {
   std::vector<BasicBlock *> origBB;
-  int splitN = SplitNum;
+  int splitN = 0;
 
   // Save all basic blocks
   for (BasicBlock &BB : *f)
@@ -70,8 +70,12 @@ void SplitBasicBlock::split(Function *f) {
       continue;
 
     // Check splitN and current BB size
-    if ((size_t)splitN > curr->size())
-      splitN = curr->size() - 1;
+    if (SplitNum > curr->size() - 1) {
+        splitN = curr->size() - 1;
+    }
+    else {
+        splitN = SplitNum;
+    }
 
     // Generate splits point
     std::vector<int> test;
