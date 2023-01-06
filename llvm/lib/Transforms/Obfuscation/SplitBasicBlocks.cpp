@@ -9,7 +9,7 @@
 using namespace llvm;
 using namespace std;
 
-static cl::opt<int> SplitNum("split_num", cl::init(2),
+static cl::opt<size_t> SplitNum("split_num", cl::init(2),
                              cl::desc("Split <split_num> time each BB"));
 
 namespace {
