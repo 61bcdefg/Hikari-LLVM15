@@ -9,7 +9,7 @@
 using namespace llvm;
 using namespace std;
 
-static cl::opt<int> SplitNum("split_num", cl::init(2),
+static cl::opt<size_t> SplitNum("split_num", cl::init(2),
                              cl::desc("Split <split_num> time each BB"));
 
 namespace {
@@ -24,7 +24,7 @@ struct SplitBasicBlock : public FunctionPass {
 
   bool containsPHI(BasicBlock *b);
   bool containsSwiftError(BasicBlock *b);
-  void shuffle(std::vector<int> &vec);
+  void shuffle(std::vector<size_t> &vec);
 };
 } // namespace
 
@@ -55,7 +55,7 @@ bool SplitBasicBlock::runOnFunction(Function &F) {
 
 void SplitBasicBlock::split(Function *f) {
   std::vector<BasicBlock *> origBB;
-  int splitN = SplitNum;
+  size_t splitN = SplitNum;
 
   // Save all basic blocks
   for (BasicBlock &BB : *f)
@@ -70,11 +70,11 @@ void SplitBasicBlock::split(Function *f) {
       continue;
 
     // Check splitN and current BB size
-    if ((size_t)splitN > curr->size())
+    if (splitN > curr->size())
       splitN = curr->size() - 1;
 
     // Generate splits point
-    std::vector<int> test;
+    std::vector<size_t> test;
     for (size_t i = 1; i < curr->size(); ++i)
       test.emplace_back(i);
 
@@ -87,10 +87,13 @@ void SplitBasicBlock::split(Function *f) {
     // Split
     BasicBlock::iterator it = curr->begin();
     BasicBlock *toSplit = curr;
-    int last = 0;
-    for (int i = 0; i < splitN; ++i) {
-      for (int j = 0; j < test[i] - last; ++j)
+    size_t last = 0;
+    for (size_t i = 0; i < test.size() && i < splitN; ++i) {
+      size_t iteradded = test[i] - last;
+      while (iteradded) {
         ++it;
+        --iteradded;
+      }
       last = test[i];
       if (toSplit->size() < 2)
         continue;
@@ -127,7 +130,7 @@ bool SplitBasicBlock::containsSwiftError(BasicBlock *b) {
   return false;
 }
 
-void SplitBasicBlock::shuffle(std::vector<int> &vec) {
+void SplitBasicBlock::shuffle(std::vector<size_t> &vec) {
   int n = vec.size();
   for (int i = n - 1; i > 0; --i)
     std::swap(vec[i], vec[cryptoutils->get_range(i + 1)]);
