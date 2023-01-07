@@ -46,8 +46,8 @@ bool SplitBasicBlock::runOnFunction(Function &F) {
 }
 
 void SplitBasicBlock::split(Function *F) {
-    errs() << "\n>>>>>>>>>>> SplitBasicBlock::split() entry <<<<<<<<<<<<<<<\n";
-    errs() << ">>>>> Running on the function: " << F->getName() << "\n";
+    //errs() << "\n>>>>>>>>>>> SplitBasicBlock::split() entry <<<<<<<<<<<<<<<\n";
+    //errs() << ">>>>> Running on the function: " << F->getName() << "\n";
     std::vector<BasicBlock *> origBB;
     size_t split_ctr = 0;
     size_t bb_number = 0;
@@ -57,24 +57,24 @@ void SplitBasicBlock::split(Function *F) {
         origBB.emplace_back(&BB);
     }
 
-    errs() << ">>>>> Number of BB in the function: " << origBB.size() << "\n";
+    //errs() << ">>>>> Number of BB in the function: " << origBB.size() << "\n";
 
     for (BasicBlock *currBB : origBB) {
-        errs() << "\n================================================================\n";
-        errs() << ">>>>> Iterating over the BB #" << bb_number << "\n";
+        //errs() << "\n================================================================\n";
+        //errs() << ">>>>> Iterating over the BB #" << bb_number << "\n";
         bb_number++;
 
         // No need to split a 1 inst bb
         // Or ones containing a PHI node
         // Isn't compatible with SwiftError
         if (currBB->size() < 2 || containsPHI(currBB) || containsSwiftError(currBB)) {
-            errs() << ">>>>> Skipping the small BB\n";
+            //errs() << ">>>>> Skipping the small BB\n";
             continue;
         }
 
         // Check split_ctr and current BB size (the number of splits must not exceed the number of LLVM inst in the BB minus one)
         if (s_user_split_num > currBB->size() - 1) {
-            errs() << ">>>>> Setting new split_ctr value to fit the BB being processed: " << currBB->size() - 1 << "\n";
+            //errs() << ">>>>> Setting new split_ctr value to fit the BB being processed: " << currBB->size() - 1 << "\n";
             split_ctr = currBB->size() - 1;
         }
         else {
@@ -86,7 +86,7 @@ void SplitBasicBlock::split(Function *F) {
         for (size_t i = 1; i < currBB->size(); ++i) {
             llvm_inst_ord.emplace_back(i);
         }
-        errs() << ">>>>> Number of instructions in the BB being processed: " << llvm_inst_ord.size() << "\n";
+        //errs() << ">>>>> Number of instructions in the BB being processed: " << llvm_inst_ord.size() << "\n";
 
         // Shuffle
         shuffle(llvm_inst_ord);
@@ -97,10 +97,10 @@ void SplitBasicBlock::split(Function *F) {
         BasicBlock::iterator curr_bb_it = currBB->begin();
         BasicBlock *curr_bb_offset = currBB;
 
-        errs() << ">>>>> Actual split_ctr before splitting: " << split_ctr << "\n";
+        //errs() << ">>>>> Actual split_ctr before splitting: " << split_ctr << "\n";
 
         for (size_t i = 0; i < split_ctr; ++i) {
-            errs() << ">>>>> i: " << i << ", llvm_inst_ord[i]: " << llvm_inst_ord[i] << ", llvm_inst_prev_offset: " << llvm_inst_prev_offset << "\n";
+            //errs() << ">>>>> i: " << i << ", llvm_inst_ord[i]: " << llvm_inst_ord[i] << ", llvm_inst_prev_offset: " << llvm_inst_prev_offset << "\n";
 
             for (size_t j = 0; j < llvm_inst_ord[i] - llvm_inst_prev_offset; ++j) {
                 ++curr_bb_it;
