@@ -187,8 +187,9 @@ struct StringEncryption : public ModulePass {
           }
         }
         erase_value(Globals, GV);
-        if (breakThisFor)
+        if (breakThisFor || Globals.size() == 0) { // BUG FIX #30
           break;
+        }
       }
     }
     Globals2.clear();
