@@ -105,6 +105,7 @@ namespace llvm {
                         if (User *U = dyn_cast<User>(Op))
                             Users.insert(U);
                         Users.insert(&I);
+                        errs() << ">>>>> emplace_back(), global var name: " << G->getName() << "\n";
                         Globals.emplace_back(G);
                         Globals2.emplace_back(G);
                     }
@@ -112,8 +113,13 @@ namespace llvm {
             set<GlobalVariable *> objCStrings;
             map<GlobalVariable *, pair<Constant *, GlobalVariable *>> GV2Keys;
             map<GlobalVariable * /*old*/, pair<GlobalVariable * /*encrypted*/, GlobalVariable * /*decrypt space*/>> old2new;
+
+            vector<GlobalVariable *> Globals_itr = Globals;
+
             while (Globals.size()) {
-                for (GlobalVariable *GV : Globals) {
+                errs() << ">>>>> Globals.size(): " << Globals.size() << "\n";
+                for (GlobalVariable *GV : Globals_itr) {
+                    errs() << ">>>>> foreach loop, global var name: " << GV->getName() << "\n";
                     bool breakThisFor = false;
                     if (handleableGV(GV)) {
                         if (ConstantExpr *CE = dyn_cast<ConstantExpr>(GV->getInitializer())) {
@@ -145,8 +151,10 @@ namespace llvm {
                                 Constant *Op = CS->getOperand(i);
                                 if (GlobalVariable *OpGV =
                                         dyn_cast<GlobalVariable>(Op->stripPointerCasts())) {
-                                    if (!handleableGV(OpGV))
+                                    if (!handleableGV(OpGV)) {
+                                        errs() << ">>>>> continue_1, container size: " << Globals.size() << "\n";
                                         continue;
+                                    }
                                     Users.insert(Op);
                                     if (std::find(Globals2.begin(), Globals2.end(), OpGV) ==
                                             Globals2.end()) {
@@ -162,8 +170,10 @@ namespace llvm {
                                 Constant *Opp = CA->getOperand(j);
                                 if (GlobalVariable *OppGV =
                                         dyn_cast<GlobalVariable>(Opp->stripPointerCasts())) {
-                                    if (!handleableGV(OppGV))
+                                    if (!handleableGV(OppGV)) {
+                                        errs() << ">>>>> continue_2, container size: " << Globals.size() << "\n";
                                         continue;
+                                    }
                                     Users.insert(Opp);
                                     if (std::find(Globals2.begin(), Globals2.end(), OppGV) ==
                                             Globals2.end()) {
@@ -195,6 +205,7 @@ namespace llvm {
                         }
                     }
                     erase_value(Globals, GV);
+                    errs() << ">>>>> llvm::erase_value(), container size: " << Globals.size() << "\n";
                     if (breakThisFor || Globals.size() == 0) { // BUG FIX #30
                         break;
                     }
