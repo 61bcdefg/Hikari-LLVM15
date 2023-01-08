@@ -33,7 +33,7 @@ namespace llvm {
         map<Function * /*Function*/, GlobalVariable * /*Decryption Status*/>
             encstatus;
         map<GlobalVariable *, pair<Constant *, GlobalVariable *>> mgv2keys;
-        vector<GlobalVariable *> transformedgv;
+        vector<GlobalVariable *> genedgv;
         bool flag;
         StringEncryption() : ModulePass(ID) { this->flag = true; }
 
@@ -73,7 +73,7 @@ namespace llvm {
                     !GV->getName().contains("OBJC") &&
                     ((GV->getLinkage() == GlobalValue::LinkageTypes::PrivateLinkage ||
                       GV->getLinkage() == GlobalValue::LinkageTypes::InternalLinkage) && (flag || usersAllInOneFunction(GV))) &&
-                    std::find(transformedgv.begin(), transformedgv.end(), GV) == transformedgv.end())
+                    std::find(genedgv.begin(), genedgv.end(), GV) == genedgv.end())
                 return true;
             return false;
         }
@@ -98,7 +98,6 @@ namespace llvm {
         void HandleFunction(Function *Func) {
             FixFunctionConstantExpr(Func);
             vector<GlobalVariable *> Globals;
-            vector<GlobalVariable *> Globals2;
             set<User *> Users;
             for (Instruction &I : instructions(Func))
                 for (Value *Op : I.operands())
@@ -106,9 +105,8 @@ namespace llvm {
                         if (User *U = dyn_cast<User>(Op))
                             Users.insert(U);
                         Users.insert(&I);
-                        errs() << ">>>>> emplace_back(), global var name: " << G->getName() << "\n";
+                        //errs() << ">>>>> emplace_back(), global var name: " << G->getName() << "\n";
                         Globals.emplace_back(G);
-                        Globals2.emplace_back(G);
                     }
             set<GlobalVariable *> rawStrings;
             set<GlobalVariable *> objCStrings;
@@ -119,108 +117,113 @@ namespace llvm {
             for (auto it = Globals.begin(); it != end; ++it) {
                 end = std::remove(it + 1, end, *it);
             }
-
             Globals.erase(end, Globals.end());
 
-            vector<GlobalVariable *> Globals_itr = Globals;
+            vector<GlobalVariable *> transedGlobals = {};
 
-            while (Globals.size()) {
-                errs() << ">>>>> Globals.size(): " << Globals.size() << "\n";
-                for (GlobalVariable *GV : Globals_itr) {
-                    errs() << ">>>>> foreach loop, global var name: " << GV->getName() << "\n";
-                    bool breakThisFor = false;
-                    if (handleableGV(GV)) {
-                        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(GV->getInitializer())) {
-                            if (CE->getOpcode() == Instruction::BitCast) {
+            do {
+                for (GlobalVariable *GV : Globals) {
+                    if (std::find(transedGlobals.begin(), transedGlobals.end(),
+                                  GV) == transedGlobals.end()) {
+                        bool breakThisFor = false;
+                        if (handleableGV(GV)) {
                                 if (GlobalVariable *CastedGV =
-                                        dyn_cast<GlobalVariable>(GV->getInitializer()->stripPointerCasts())) {
-                                    if (std::find(Globals2.begin(), Globals2.end(), CastedGV) == Globals2.end()) {
-                                        Globals.emplace_back(CastedGV);
-                                        Globals2.emplace_back(CastedGV);
-                                        Users.insert(CE);
-                                        breakThisFor = true;
-                                    }
+                                        dyn_cast<GlobalVariable>(
+                                            GV->getInitializer()
+                                                ->stripPointerCasts())) {
+                                  if (std::find(Globals.begin(),
+                                                Globals.end(),
+                                                CastedGV) == Globals.end()) {
+                                    Globals.emplace_back(CastedGV);
+                                    ConstantExpr *CE = dyn_cast<ConstantExpr>(GV->getInitializer());
+                                    Users.insert(CE ? CE : GV->getInitializer());
+                                    breakThisFor = true;
+                                  }
                                 }
-                            }
-                        }
-                        if (GV->getInitializer()->getType() ==
-                                StructType::getTypeByName(Func->getParent()->getContext(),
+                            if (GV->getInitializer()->getType() ==
+                                StructType::getTypeByName(
+                                    Func->getParent()->getContext(),
                                     "struct.__NSConstantString_tag")) {
-                            objCStrings.insert(GV);
-                            rawStrings.insert(
-                                    cast<GlobalVariable>(cast<ConstantStruct>(GV->getInitializer())
-                                        ->getOperand(2)
-                                        ->stripPointerCasts()));
-                        } else if (isa<ConstantDataSequential>(GV->getInitializer())) {
-                            rawStrings.insert(GV);
-                        } else if (isa<ConstantStruct>(GV->getInitializer())) {
-                            ConstantStruct *CS = cast<ConstantStruct>(GV->getInitializer());
-                            for (unsigned i = 0; i < CS->getNumOperands(); i++) {
+                              objCStrings.insert(GV);
+                              rawStrings.insert(cast<GlobalVariable>(
+                                  cast<ConstantStruct>(GV->getInitializer())
+                                      ->getOperand(2)
+                                      ->stripPointerCasts()));
+                            } else if (isa<ConstantDataSequential>(
+                                           GV->getInitializer())) {
+                              rawStrings.insert(GV);
+                            } else if (isa<ConstantStruct>(
+                                           GV->getInitializer())) {
+                              ConstantStruct *CS =
+                                  cast<ConstantStruct>(GV->getInitializer());
+                              for (unsigned i = 0; i < CS->getNumOperands();
+                                   i++) {
                                 Constant *Op = CS->getOperand(i);
                                 if (GlobalVariable *OpGV =
-                                        dyn_cast<GlobalVariable>(Op->stripPointerCasts())) {
-                                    if (!handleableGV(OpGV)) {
-                                        errs() << ">>>>> continue_1, container size: " << Globals.size() << "\n";
-                                        continue;
-                                    }
-                                    Users.insert(Op);
-                                    if (std::find(Globals2.begin(), Globals2.end(), OpGV) ==
-                                            Globals2.end()) {
-                                        Globals.emplace_back(OpGV);
-                                        Globals2.emplace_back(OpGV);
-                                        breakThisFor = true;
-                                    }
+                                        dyn_cast<GlobalVariable>(
+                                            Op->stripPointerCasts())) {
+                                  if (!handleableGV(OpGV)) {
+                                    continue;
+                                  }
+                                  Users.insert(Op);
+                                  if (std::find(Globals.begin(),
+                                                Globals.end(),
+                                                OpGV) == Globals.end()) {
+                                    Globals.emplace_back(OpGV);
+                                    breakThisFor = true;
+                                  }
                                 }
-                            }
-                        } else if (isa<ConstantArray>(GV->getInitializer())) {
-                            ConstantArray *CA = dyn_cast<ConstantArray>(GV->getInitializer());
-                            for (unsigned j = 0; j < CA->getNumOperands(); j++) {
+                              }
+                            } else if (isa<ConstantArray>(
+                                           GV->getInitializer())) {
+                              ConstantArray *CA =
+                                  dyn_cast<ConstantArray>(GV->getInitializer());
+                              for (unsigned j = 0; j < CA->getNumOperands();
+                                   j++) {
                                 Constant *Opp = CA->getOperand(j);
                                 if (GlobalVariable *OppGV =
-                                        dyn_cast<GlobalVariable>(Opp->stripPointerCasts())) {
-                                    if (!handleableGV(OppGV)) {
-                                        errs() << ">>>>> continue_2, container size: " << Globals.size() << "\n";
-                                        continue;
-                                    }
-                                    Users.insert(Opp);
-                                    if (std::find(Globals2.begin(), Globals2.end(), OppGV) ==
-                                            Globals2.end()) {
-                                        Globals.emplace_back(OppGV);
-                                        Globals2.emplace_back(OppGV);
-                                        breakThisFor = true;
-                                    }
+                                        dyn_cast<GlobalVariable>(
+                                            Opp->stripPointerCasts())) {
+                                  if (!handleableGV(OppGV)) {
+                                    continue;
+                                  }
+                                  Users.insert(Opp);
+                                  if (std::find(Globals.begin(),
+                                                Globals.end(),
+                                                OppGV) == Globals.end()) {
+                                    Globals.emplace_back(OppGV);
+                                    breakThisFor = true;
+                                  }
                                 }
+                              }
                             }
-                        }
-                    }
-                    else if (std::find(transformedgv.begin(), transformedgv.end(), GV) !=
-                            transformedgv.end()) {
-                        pair<Constant *, GlobalVariable *> mgv2keysval = mgv2keys[GV];
-                        if (GV->getInitializer()->getType() ==
-                                StructType::getTypeByName(Func->getParent()->getContext(),
+                        } else if (std::find(genedgv.begin(), genedgv.end(),
+                                             GV) != genedgv.end()) {
+                            pair<Constant *, GlobalVariable *> mgv2keysval =
+                                mgv2keys[GV];
+                            if (GV->getInitializer()->getType() ==
+                                StructType::getTypeByName(
+                                    Func->getParent()->getContext(),
                                     "struct.__NSConstantString_tag")) {
-                            GlobalVariable *rawgv =
-                                cast<GlobalVariable>(cast<ConstantStruct>(GV->getInitializer())
-                                        ->getOperand(2)
-                                        ->stripPointerCasts());
-                            mgv2keysval = mgv2keys[rawgv];
-                            if (mgv2keysval.first && mgv2keysval.second) {
+                              GlobalVariable *rawgv = cast<GlobalVariable>(
+                                  cast<ConstantStruct>(GV->getInitializer())
+                                      ->getOperand(2)
+                                      ->stripPointerCasts());
+                              mgv2keysval = mgv2keys[rawgv];
+                              if (mgv2keysval.first && mgv2keysval.second) {
                                 GV2Keys[rawgv] = mgv2keysval;
+                              }
+                            } else if (mgv2keysval.first &&
+                                       mgv2keysval.second) {
+                              GV2Keys[GV] = mgv2keysval;
                             }
                         }
-                        else if (mgv2keysval.first && mgv2keysval.second) {
-                            GV2Keys[GV] = mgv2keysval;
-                        }
-                    }
-                    erase_value(Globals, GV);
-                    errs() << ">>>>> llvm::erase_value(), container size: " << Globals.size() << "\n";
-                    if (breakThisFor || Globals.size() == 0) { // BUG FIX #30
-                        break;
+                        transedGlobals.emplace_back(GV);
+                        if (breakThisFor)
+                            break;
                     }
                 } // foreach loop
-            } // while
-
-            Globals2.clear();
+            } while (transedGlobals.size() != Globals.size());
             for (GlobalVariable *GV : rawStrings) {
                 if (GV->getInitializer()->isZeroValue() ||
                         GV->getInitializer()->isNullValue())
@@ -313,12 +316,12 @@ namespace llvm {
                         *(GV->getParent()), EncryptedConst->getType(), false,
                         GV->getLinkage(), EncryptedConst, "EncryptedString", nullptr,
                         GV->getThreadLocalMode(), GV->getType()->getAddressSpace());
-                transformedgv.emplace_back(EncryptedRawGV);
+                genedgv.emplace_back(EncryptedRawGV);
                 GlobalVariable *DecryptSpaceGV = new GlobalVariable(
                         *(GV->getParent()), DummyConst->getType(), false,
                         GV->getLinkage(), DummyConst, "DecryptSpace", nullptr,
                         GV->getThreadLocalMode(), GV->getType()->getAddressSpace());
-                transformedgv.emplace_back(DecryptSpaceGV);
+                genedgv.emplace_back(DecryptSpaceGV);
                 old2new[GV] = make_pair(EncryptedRawGV, DecryptSpaceGV);
                 GV2Keys[DecryptSpaceGV] = make_pair(KeyConst, EncryptedRawGV);
                 mgv2keys[DecryptSpaceGV] = GV2Keys[DecryptSpaceGV];
@@ -332,11 +335,11 @@ namespace llvm {
                 GlobalVariable *EncryptedOCGV =
                     ObjectiveCString(GV, "EncryptedStringObjC", oldrawString,
                             old2new[oldrawString].first, CS);
-                transformedgv.emplace_back(EncryptedOCGV);
+                genedgv.emplace_back(EncryptedOCGV);
                 GlobalVariable *DecryptSpaceOCGV =
                     ObjectiveCString(GV, "DecryptSpaceObjC", oldrawString,
                             old2new[oldrawString].second, CS);
-                transformedgv.emplace_back(DecryptSpaceOCGV);
+                genedgv.emplace_back(DecryptSpaceOCGV);
                 old2new[GV] = make_pair(EncryptedOCGV, DecryptSpaceOCGV);
             } // End prepare ObjC new GV
             if (GV2Keys.empty())
