@@ -22,6 +22,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <algorithm>
 
 using namespace llvm;
 using namespace std;
@@ -113,6 +114,13 @@ namespace llvm {
             set<GlobalVariable *> objCStrings;
             map<GlobalVariable *, pair<Constant *, GlobalVariable *>> GV2Keys;
             map<GlobalVariable * /*old*/, pair<GlobalVariable * /*encrypted*/, GlobalVariable * /*decrypt space*/>> old2new;
+
+            auto end = Globals.end();
+            for (auto it = Globals.begin(); it != end; ++it) {
+                end = std::remove(it + 1, end, *it);
+            }
+
+            Globals.erase(end, Globals.end());
 
             vector<GlobalVariable *> Globals_itr = Globals;
 
