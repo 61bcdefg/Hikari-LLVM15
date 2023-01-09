@@ -8,5 +8,5 @@ using namespace llvm;
 namespace llvm {
 ModulePass *createConstantEncryptionPass(bool flag);
 void initializeConstantEncryptionPass(PassRegistry &Registry);
-}
+} // namespace llvm
 #endif

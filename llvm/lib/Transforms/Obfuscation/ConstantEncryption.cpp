@@ -36,9 +36,9 @@ using namespace llvm;
 using namespace std;
 static cl::opt<bool>
     SubstituteXor("constenc_subxor",
-              cl::desc("Substitute xor operator of ConstantEncryption"),
-              cl::value_desc("Substitute xor operator"), cl::init(false),
-              cl::Optional);
+                  cl::desc("Substitute xor operator of ConstantEncryption"),
+                  cl::value_desc("Substitute xor operator"), cl::init(false),
+                  cl::Optional);
 static cl::opt<bool>
     ConstToGV("constenc_togv",
               cl::desc("Replace ConstantInt with GlobalVariable"),
@@ -61,8 +61,8 @@ struct ConstantEncryption : public ModulePass {
   ConstantEncryption(bool flag) : ModulePass(ID) { this->flag = flag; }
   ConstantEncryption() : ModulePass(ID) { this->flag = true; }
   bool canEncryptConstant(Instruction *I) {
-    if (isa<IntrinsicInst>(I) || isa<GetElementPtrInst>(I) ||
-        isa<PHINode>(I) || I->isAtomic())
+    if (isa<IntrinsicInst>(I) || isa<GetElementPtrInst>(I) || isa<PHINode>(I) ||
+        I->isAtomic())
       return false;
     if (!(cryptoutils->get_range(100) <= ObfProbRate))
       return false;
@@ -132,14 +132,13 @@ struct ConstantEncryption : public ModulePass {
     for (User *U : GVPtr->users()) {
       BinaryOperator *XORInst = nullptr;
       if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
-        XORInst =
-            BinaryOperator::Create(Instruction::Xor, LI, XORKey);
+        XORInst = BinaryOperator::Create(Instruction::Xor, LI, XORKey);
         XORInst->insertAfter(LI);
         LI->replaceAllUsesWith(XORInst);
         XORInst->setOperand(0, LI);
       } else if (StoreInst *SI = dyn_cast<StoreInst>(U)) {
-        XORInst = BinaryOperator::Create(
-            Instruction::Xor, SI->getOperand(0), XORKey);
+        XORInst =
+            BinaryOperator::Create(Instruction::Xor, SI->getOperand(0), XORKey);
         XORInst->insertAfter(SI);
         SI->replaceUsesOfWith(SI->getOperand(0), XORInst);
       }
@@ -155,14 +154,15 @@ struct ConstantEncryption : public ModulePass {
     ConstantInt *New = keyandnew.second;
     if (!Key || !New)
       return;
-    BinaryOperator *NewOperand = BinaryOperator::Create(Instruction::Xor, New,
-                      Key, "", I);
+    BinaryOperator *NewOperand =
+        BinaryOperator::Create(Instruction::Xor, New, Key, "", I);
     I->setOperand(opindex, NewOperand);
     if (SubstituteXor)
       SubstituteImpl::substituteXor(NewOperand);
   }
 
-  pair<ConstantInt * /*key*/, ConstantInt * /*new*/> PairConstantInt(ConstantInt *C) {
+  pair<ConstantInt * /*key*/, ConstantInt * /*new*/>
+  PairConstantInt(ConstantInt *C) {
     IntegerType *IT = cast<IntegerType>(C->getType());
     uint64_t K;
     if (IT->getBitWidth() == 1 || IT->getBitWidth() == 8)
@@ -175,7 +175,8 @@ struct ConstantEncryption : public ModulePass {
       K = cryptoutils->get_uint64_t();
     else
       return make_pair(nullptr, nullptr);
-    ConstantInt *CI = cast<ConstantInt>(ConstantInt::get(IT, K ^ C->getValue()));
+    ConstantInt *CI =
+        cast<ConstantInt>(ConstantInt::get(IT, K ^ C->getValue()));
     return make_pair(ConstantInt::get(IT, K), CI);
   }
 };

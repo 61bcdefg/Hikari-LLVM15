@@ -6,7 +6,7 @@ using namespace llvm;
 
 // Namespace
 namespace llvm {
-	ModulePass* createFunctionWrapperPass(bool flag);
-	void initializeFunctionWrapperPass(PassRegistry &Registry);
-}
+ModulePass *createFunctionWrapperPass(bool flag);
+void initializeFunctionWrapperPass(PassRegistry &Registry);
+} // namespace llvm
 #endif

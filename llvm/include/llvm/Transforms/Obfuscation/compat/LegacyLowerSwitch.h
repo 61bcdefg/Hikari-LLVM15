@@ -1,4 +1,5 @@
-//===- LegacyLowerSwitch.h - Eliminate Switch instructions --------------------===//
+//===- LegacyLowerSwitch.h - Eliminate Switch instructions
+//--------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -124,7 +125,9 @@ struct CaseCmp {
 char LegacyLowerSwitch::ID = 0;
 
 // createLowerSwitchPass - Interface to this file...
-FunctionPass *llvm::createLegacyLowerSwitchPass() { return new LegacyLowerSwitch(); }
+FunctionPass *llvm::createLegacyLowerSwitchPass() {
+  return new LegacyLowerSwitch();
+}
 
 bool LegacyLowerSwitch::runOnFunction(Function &F) {
   bool Changed = false;
@@ -215,11 +218,11 @@ static void fixPhis(BasicBlock *SuccBB, BasicBlock *OrigBB, BasicBlock *NewBB,
 /// used to keep track of the bounds for Val that have already been checked by
 /// a block emitted by one of the previous calls to switchConvert in the call
 /// stack.
-BasicBlock *LegacyLowerSwitch::switchConvert(CaseItr Begin, CaseItr End, ConstantInt *LowerBound,
-                           ConstantInt *UpperBound, Value *Val,
-                           BasicBlock *Predecessor, BasicBlock *OrigBlock,
-                           BasicBlock *Default,
-                           const std::vector<IntRange> &UnreachableRanges) {
+BasicBlock *LegacyLowerSwitch::switchConvert(
+    CaseItr Begin, CaseItr End, ConstantInt *LowerBound,
+    ConstantInt *UpperBound, Value *Val, BasicBlock *Predecessor,
+    BasicBlock *OrigBlock, BasicBlock *Default,
+    const std::vector<IntRange> &UnreachableRanges) {
   unsigned Size = End - Begin;
 
   if (Size == 1) {
@@ -306,8 +309,8 @@ BasicBlock *LegacyLowerSwitch::switchConvert(CaseItr Begin, CaseItr End, Constan
 /// branch. At this point in the tree, the value can't be another valid case
 /// value, so the jump to the "default" branch is warranted.
 BasicBlock *LegacyLowerSwitch::newLeafBlock(CaseRange &Leaf, Value *Val,
-                                      BasicBlock *OrigBlock,
-                                      BasicBlock *Default) {
+                                            BasicBlock *OrigBlock,
+                                            BasicBlock *Default) {
   Function *F = OrigBlock->getParent();
   BasicBlock *NewLeaf = BasicBlock::Create(Val->getContext(), "LeafBlock");
   F->getBasicBlockList().insert(++OrigBlock->getIterator(), NewLeaf);
@@ -368,7 +371,7 @@ unsigned LegacyLowerSwitch::Clusterify(CaseVector &Cases, SwitchInst *SI) {
   // Start with "simple" cases
   for (auto Case : SI->cases())
     Cases.emplace_back(CaseRange(Case.getCaseValue(), Case.getCaseValue(),
-                              Case.getCaseSuccessor()));
+                                 Case.getCaseSuccessor()));
 
   llvm::sort(Cases, CaseCmp());
 
@@ -405,8 +408,8 @@ unsigned LegacyLowerSwitch::Clusterify(CaseVector &Cases, SwitchInst *SI) {
 
 /// Replace the specified switch instruction with a sequence of chained if-then
 /// insts in a balanced binary search.
-void LegacyLowerSwitch::processSwitchInst(SwitchInst *SI,
-                                    SmallPtrSetImpl<BasicBlock *> &DeleteList) {
+void LegacyLowerSwitch::processSwitchInst(
+    SwitchInst *SI, SmallPtrSetImpl<BasicBlock *> &DeleteList) {
   BasicBlock *CurBlock = SI->getParent();
   BasicBlock *OrigBlock = CurBlock;
   Function *F = CurBlock->getParent();

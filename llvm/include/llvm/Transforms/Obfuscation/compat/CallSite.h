@@ -128,7 +128,8 @@ public:
   void setCalledFunction(Value *V) {
     assert(getInstruction() && "Not a call, callbr, or invoke instruction!");
 #if LLVM_VERSION_MAJOR >= 15
-    assert(cast<PointerType>(V->getType())->isOpaqueOrPointeeTypeMatches(
+    assert(cast<PointerType>(V->getType())
+               ->isOpaqueOrPointeeTypeMatches(
                    cast<CallBase>(getInstruction())->getFunctionType()) &&
            "New callee type does not match FunctionType on call");
 #else
@@ -291,9 +292,9 @@ public:
 
 #define CALLSITE_DELEGATE_GETTER(METHOD)                                       \
   InstrTy *II = getInstruction();                                              \
-  return isCall()     ? cast<CallInst>(II)->METHOD                                 \
-                  : isCallBr() ? cast<CallBrInst>(II)->METHOD                  \
-                                : cast<InvokeInst>(II)->METHOD
+  return isCall()     ? cast<CallInst>(II)->METHOD                             \
+         : isCallBr() ? cast<CallBrInst>(II)->METHOD                           \
+                      : cast<InvokeInst>(II)->METHOD
 
 #define CALLSITE_DELEGATE_SETTER(METHOD)                                       \
   InstrTy *II = getInstruction();                                              \

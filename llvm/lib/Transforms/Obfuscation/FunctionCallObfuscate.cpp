@@ -1,8 +1,8 @@
-// For open-source license, please refer to [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
+// For open-source license, please refer to
+// [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
 //===----------------------------------------------------------------------===//
 #include "json.hpp"
 #include "llvm/ADT/Triple.h"
-#include "llvm/Transforms/Obfuscation/compat/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
@@ -13,6 +13,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Obfuscation/Obfuscation.h"
+#include "llvm/Transforms/Obfuscation/compat/CallSite.h"
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
@@ -27,10 +28,10 @@ using json = nlohmann::json;
 static const int DARWIN_FLAG = 0x2 | 0x8;
 static const int ANDROID64_FLAG = 0x00002 | 0x100;
 static const int ANDROID32_FLAG = 0x0000 | 0x2;
-static cl::opt<uint64_t> dlopen_flag(
-    "fco_flag",
-    cl::desc("The value of RTLD_DEFAULT on your platform"),
-    cl::value_desc("value"), cl::init(-1), cl::Optional);
+static cl::opt<uint64_t>
+    dlopen_flag("fco_flag",
+                cl::desc("The value of RTLD_DEFAULT on your platform"),
+                cl::value_desc("value"), cl::init(-1), cl::Optional);
 static cl::opt<string>
     SymbolConfigPath("fcoconfig",
                      cl::desc("FunctionCallObfuscate Configuration Path"),
@@ -56,9 +57,7 @@ struct FunctionCallObfuscate : public FunctionPass {
     this->initialized = false;
     this->objchandled = false;
   }
-  StringRef getPassName() const override {
-    return "FunctionCallObfuscate";
-  }
+  StringRef getPassName() const override { return "FunctionCallObfuscate"; }
   bool initialize(Module &M) {
     // Basic Defs
     if (SymbolConfigPath == "+-x/") {
@@ -74,8 +73,8 @@ struct FunctionCallObfuscate : public FunctionPass {
              << "\n";
       infile >> this->Configuration;
     } else {
-      errs() << "Failed To Load Symbol Configuration From:"
-             << SymbolConfigPath << "\n";
+      errs() << "Failed To Load Symbol Configuration From:" << SymbolConfigPath
+             << "\n";
     }
     Triple tri(M.getTargetTriple());
     if (tri.getVendor() == Triple::VendorType::Apple) {
@@ -128,7 +127,8 @@ struct FunctionCallObfuscate : public FunctionPass {
             // We need to bitcast it back to avoid IRVerifier
             Value *BCI = builder.CreateBitCast(CI, I->getType());
             I->replaceAllUsesWith(BCI);
-            toErase.emplace_back(I); // We cannot erase it directly or we will have problems releasing the IRBuilder.
+            toErase.emplace_back(I); // We cannot erase it directly or we will
+                                     // have problems releasing the IRBuilder.
           }
         }
         GV.removeDeadConstantUsers();
@@ -139,8 +139,12 @@ struct FunctionCallObfuscate : public FunctionPass {
       }
       // Selector Convert
       else if (GV.getName().contains("OBJC_SELECTOR_REFERENCES")) {
-        ConstantExpr *CE = M.getContext().supportsTypedPointers() ? dyn_cast<ConstantExpr>(GV.getInitializer()) : nullptr;
-        Constant *C = M.getContext().supportsTypedPointers() ? CE->getOperand(0) : GV.getInitializer();
+        ConstantExpr *CE = M.getContext().supportsTypedPointers()
+                               ? dyn_cast<ConstantExpr>(GV.getInitializer())
+                               : nullptr;
+        Constant *C = M.getContext().supportsTypedPointers()
+                          ? CE->getOperand(0)
+                          : GV.getInitializer();
         GlobalVariable *SELNameGV = dyn_cast<GlobalVariable>(C);
         ConstantDataArray *CDA =
             dyn_cast<ConstantDataArray>(SELNameGV->getInitializer());
@@ -156,7 +160,8 @@ struct FunctionCallObfuscate : public FunctionPass {
             // We need to bitcast it back to avoid IRVerifier
             Value *BCI = builder.CreateBitCast(CI, I->getType());
             I->replaceAllUsesWith(BCI);
-            toErase.emplace_back(I); // We cannot erase it directly or we will have problems releasing the IRBuilder.
+            toErase.emplace_back(I); // We cannot erase it directly or we will
+                                     // have problems releasing the IRBuilder.
           }
         }
         GV.removeDeadConstantUsers();
@@ -176,7 +181,8 @@ struct FunctionCallObfuscate : public FunctionPass {
       return false;
     Triple Tri(F.getParent()->getTargetTriple());
     if (!Tri.isAndroid() && !Tri.isOSDarwin()) {
-      errs() << "Unsupported Target Triple: " << F.getParent()->getTargetTriple() << "\n";
+      errs() << "Unsupported Target Triple: "
+             << F.getParent()->getTargetTriple() << "\n";
       return false;
     }
     errs() << "Running FunctionCallObfuscate On " << F.getName() << "\n";
@@ -194,8 +200,8 @@ struct FunctionCallObfuscate : public FunctionPass {
         false); // int has a length of 32 on both 32/64bit platform
     FunctionType *dlsym_type =
         FunctionType::get(Int8PtrTy, {Int8PtrTy, Int8PtrTy}, false);
-    Function *dlopen_decl =
-        cast<Function>(M->getOrInsertFunction("dlopen", dlopen_type).getCallee());
+    Function *dlopen_decl = cast<Function>(
+        M->getOrInsertFunction("dlopen", dlopen_type).getCallee());
     Function *dlsym_decl =
         cast<Function>(M->getOrInsertFunction("dlsym", dlsym_type).getCallee());
     // Begin Iteration
@@ -235,24 +241,25 @@ struct FunctionCallObfuscate : public FunctionPass {
             BasicBlock *EntryBlock = CS->getParent();
             if (Tri.isOSDarwin()) {
               dlopen_flag = DARWIN_FLAG;
-            }
-            else if (Tri.isAndroid()) {
+            } else if (Tri.isAndroid()) {
               if (Tri.isArch64Bit())
                 dlopen_flag = ANDROID64_FLAG;
               else
                 dlopen_flag = ANDROID32_FLAG;
-            }
-            else {
+            } else {
               errs() << "[FunctionCallObfuscate] Unsupported Target Triple:"
-                         << F.getParent()->getTargetTriple() << "\n";
-              errs() << "[FunctionCallObfuscate] Applying Default Signature:" << dlopen_flag << "\n";
+                     << F.getParent()->getTargetTriple() << "\n";
+              errs() << "[FunctionCallObfuscate] Applying Default Signature:"
+                     << dlopen_flag << "\n";
             }
             IRBuilder<> IRB(EntryBlock, EntryBlock->getFirstInsertionPt());
-            Value *Handle =
-                IRB.CreateCall(dlopen_decl, {Constant::getNullValue(Int8PtrTy),
+            Value *Handle = IRB.CreateCall(
+                dlopen_decl, {Constant::getNullValue(Int8PtrTy),
                               ConstantInt::get(Int32Ty, dlopen_flag)});
             // Create dlsym call
-            Value *fp = IRB.CreateCall(dlsym_decl, {Handle, IRB.CreateGlobalStringPtr(calledFunctionName)});
+            Value *fp = IRB.CreateCall(
+                dlsym_decl,
+                {Handle, IRB.CreateGlobalStringPtr(calledFunctionName)});
             Value *bitCastedFunction =
                 IRB.CreateBitCast(fp, CS.getCalledValue()->getType());
             CS.setCalledFunction(bitCastedFunction);

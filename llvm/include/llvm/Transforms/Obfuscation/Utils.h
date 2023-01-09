@@ -4,10 +4,10 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Transforms/Utils/Local.h" // For DemoteRegToStack and DemotePHIToStack
-#include <stdio.h>
-#include <sstream>
 #include <map>
 #include <set>
+#include <sstream>
+#include <stdio.h>
 #if LLVM_VERSION_MAJOR >= 15
 #include "llvm/IR/Constants.h"
 #endif

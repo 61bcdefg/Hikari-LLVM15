@@ -1,14 +1,14 @@
-// For open-source license, please refer to [License](https://github.com/HikariObfuscator/Hikari/wiki/License). 
+// For open-source license, please refer to
+// [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
 //===----------------------------------------------------------------------===//
 #include "llvm/Transforms/Obfuscation/Utils.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/Module.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/InstIterator.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/NoFolder.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 using namespace std;
 // Shamefully borrowed from ../Scalar/RegToMem.cpp and .../IR/Instruction.cpp :(
@@ -88,10 +88,12 @@ void FixBasicBlockConstantExpr(BasicBlock *BB) {
   // - Phis must be placed at BB start so CEs must be placed prior to current BB
   assert(!BB->empty() && "BasicBlock is empty!");
   assert(BB->getParent() && "BasicBlock must be in a Function!");
-  Instruction* FunctionInsertPt = &*(BB->getParent()->getEntryBlock().getFirstInsertionPt());
+  Instruction *FunctionInsertPt =
+      &*(BB->getParent()->getEntryBlock().getFirstInsertionPt());
 
   for (Instruction &I : *BB) {
-    if (isa<LandingPadInst>(I) || isa<FuncletPadInst>(I) || isa<IntrinsicInst>(I))
+    if (isa<LandingPadInst>(I) || isa<FuncletPadInst>(I) ||
+        isa<IntrinsicInst>(I))
       continue;
     for (unsigned int i = 0; i < I.getNumOperands(); i++)
       if (ConstantExpr *C = dyn_cast<ConstantExpr>(I.getOperand(i))) {
@@ -99,7 +101,7 @@ void FixBasicBlockConstantExpr(BasicBlock *BB) {
         if (isa<PHINode>(I))
           IRB.SetInsertPoint(FunctionInsertPt);
         Instruction *Inst = IRB.Insert(C->getAsInstruction());
-        I.setOperand(i,Inst);
+        I.setOperand(i, Inst);
       }
   }
 }

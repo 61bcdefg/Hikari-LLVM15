@@ -1,4 +1,5 @@
-// For open-source license, please refer to [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
+// For open-source license, please refer to
+// [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
 //===----------------------------------------------------------------------===//
 /*
   For maximum usability. We provide two modes for this pass, as defined in
@@ -36,7 +37,7 @@ static cl::opt<bool>
                   cl::desc("[AntiClassDump]Inject codes to +initialize"));
 static cl::opt<bool>
     RenameMethodIMP("acd-rename-methodimp", cl::init(false), cl::NotHidden,
-                  cl::desc("[AntiClassDump]Rename methods imp"));
+                    cl::desc("[AntiClassDump]Rename methods imp"));
 namespace llvm {
 struct AntiClassDump : public ModulePass {
   static char ID;
@@ -50,24 +51,33 @@ struct AntiClassDump : public ModulePass {
     triple = Triple(M.getTargetTriple());
     if (triple.getVendor() != Triple::VendorType::Apple) {
       // We only support AAPL's ObjC Implementation ATM
-      errs() << M.getTargetTriple()  << " is Not Supported For LLVM AntiClassDump\nProbably GNU Step?\n";
+      errs()
+          << M.getTargetTriple()
+          << " is Not Supported For LLVM AntiClassDump\nProbably GNU Step?\n";
       return false;
     }
     Type *Int8PtrTy = Type::getInt8PtrTy(M.getContext());
     // Generic ObjC Runtime Declarations
-    FunctionType *IMPType = FunctionType::get(Int8PtrTy, {Int8PtrTy, Int8PtrTy}, true);
+    FunctionType *IMPType =
+        FunctionType::get(Int8PtrTy, {Int8PtrTy, Int8PtrTy}, true);
     PointerType *IMPPointerType = PointerType::getUnqual(IMPType);
-    FunctionType *class_replaceMethod_type = FunctionType::get(IMPPointerType, {Int8PtrTy, Int8PtrTy, IMPPointerType, Int8PtrTy}, false);
+    FunctionType *class_replaceMethod_type = FunctionType::get(
+        IMPPointerType, {Int8PtrTy, Int8PtrTy, IMPPointerType, Int8PtrTy},
+        false);
     M.getOrInsertFunction("class_replaceMethod", class_replaceMethod_type);
-    FunctionType *sel_registerName_type = FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
+    FunctionType *sel_registerName_type =
+        FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
     M.getOrInsertFunction("sel_registerName", sel_registerName_type);
-    FunctionType *objc_getClass_type = FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
+    FunctionType *objc_getClass_type =
+        FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
     M.getOrInsertFunction("objc_getClass", objc_getClass_type);
     M.getOrInsertFunction("objc_getMetaClass", objc_getClass_type);
     // Types Collected. Now Inject Functions
-    FunctionType *class_getName_Type = FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
+    FunctionType *class_getName_Type =
+        FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
     M.getOrInsertFunction("class_getName", class_getName_Type);
-    FunctionType *objc_getMetaClass_Type = FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
+    FunctionType *objc_getMetaClass_Type =
+        FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
     M.getOrInsertFunction("objc_getMetaClass", objc_getMetaClass_Type);
     appleptrauth = hasApplePtrauth(&M);
     opaquepointers = !M.getContext().supportsTypedPointers();
@@ -97,18 +107,19 @@ struct AntiClassDump : public ModulePass {
     for (unsigned int i = 0; i < OBJC_LABEL_CLASS_CDS->getNumOperands(); i++) {
       ConstantExpr *clsEXPR =
           opaquepointers
-              ? nullptr :
-          dyn_cast<ConstantExpr>(OBJC_LABEL_CLASS_CDS->getOperand(i));
+              ? nullptr
+              : dyn_cast<ConstantExpr>(OBJC_LABEL_CLASS_CDS->getOperand(i));
       GlobalVariable *CEGV = dyn_cast<GlobalVariable>(
           opaquepointers ? OBJC_LABEL_CLASS_CDS->getOperand(i)
-                                                                            : clsEXPR->getOperand(0));
+                         : clsEXPR->getOperand(0));
       ConstantStruct *clsCS = dyn_cast<ConstantStruct>(CEGV->getInitializer());
       /*
         First Operand MetaClass.
         Second Operand SuperClass
         Fifth Operand ClassRO
       */
-      GlobalVariable *SuperClassGV = dyn_cast_or_null<GlobalVariable>(clsCS->getOperand(1));
+      GlobalVariable *SuperClassGV =
+          dyn_cast_or_null<GlobalVariable>(clsCS->getOperand(1));
       string supclsName = "";
       string clsName = CEGV->getName().str();
       clsName.replace(clsName.find("OBJC_CLASS_$_"), strlen("OBJC_CLASS_$_"),
@@ -152,7 +163,8 @@ struct AntiClassDump : public ModulePass {
     }
     return true;
   } // runOnModule
-  map<string, Value *> splitclass_ro_t(ConstantStruct *class_ro,
+  map<string, Value *>
+  splitclass_ro_t(ConstantStruct *class_ro,
                   Module *M) { // Split a class_ro_t structure
     map<string, Value *> info;
     StructType *objc_method_list_t_type =
@@ -163,7 +175,11 @@ struct AntiClassDump : public ModulePass {
         continue;
       }
       Type *type = tmp->getType();
-      if ((!opaquepointers && type == PointerType::getUnqual(objc_method_list_t_type)) || (opaquepointers && (tmp->getName().startswith("_OBJC_$_INSTANCE_METHODS") || tmp->getName().startswith("_OBJC_$_CLASS_METHODS")))) {
+      if ((!opaquepointers &&
+           type == PointerType::getUnqual(objc_method_list_t_type)) ||
+          (opaquepointers &&
+           (tmp->getName().startswith("_OBJC_$_INSTANCE_METHODS") ||
+            tmp->getName().startswith("_OBJC_$_CLASS_METHODS")))) {
         // Insert Methods
         ConstantExpr *methodListCE =
             opaquepointers ? nullptr : cast<ConstantExpr>(tmp);
@@ -171,20 +187,17 @@ struct AntiClassDump : public ModulePass {
         GlobalVariable *methodListGV =
             appleptrauth
                 ? opaquepointers
-                      ? cast<GlobalVariable>(
-                            cast<GlobalVariable>(tmp)
-                                ->getInitializer()
-                                ->getOperand(0))
+                      ? cast<GlobalVariable>(cast<GlobalVariable>(tmp)
+                                                 ->getInitializer()
+                                                 ->getOperand(0))
                       : cast<GlobalVariable>(
-                            cast<ConstantExpr>(
-                                cast<GlobalVariable>(
-                                    methodListCE->getOperand(0))
-                                    ->getInitializer()
-                                    ->getOperand(0))
+                            cast<ConstantExpr>(cast<GlobalVariable>(
+                                                   methodListCE->getOperand(0))
+                                                   ->getInitializer()
+                                                   ->getOperand(0))
                                 ->getOperand(0))
                 : cast<GlobalVariable>(
-                      opaquepointers ? tmp
-                                           : methodListCE->getOperand(0));
+                      opaquepointers ? tmp : methodListCE->getOperand(0));
         // Now BitCast is stripped out.
         assert(methodListGV->hasInitializer() &&
                "MethodListGV doesn't have initializer");
@@ -207,9 +220,21 @@ struct AntiClassDump : public ModulePass {
     StringRef SuperClassName =
         appleptrauth
             ? opaquepointers
-                  ? cast<GlobalVariable>(CS->getOperand(1))->getInitializer()->getOperand(0)->getName() : cast<ConstantExpr>(cast<GlobalVariable>(cast<ConstantExpr>(CS->getOperand(1))->getOperand(0))->getInitializer()->getOperand(0))->getOperand(0)->getName() : CS->getOperand(1)->getName();
+                  ? cast<GlobalVariable>(CS->getOperand(1))
+                        ->getInitializer()
+                        ->getOperand(0)
+                        ->getName()
+                  : cast<ConstantExpr>(cast<GlobalVariable>(
+                                           cast<ConstantExpr>(CS->getOperand(1))
+                                               ->getOperand(0))
+                                           ->getInitializer()
+                                           ->getOperand(0))
+                        ->getOperand(0)
+                        ->getName()
+            : CS->getOperand(1)->getName();
     SuperClassName = SuperClassName.substr(strlen("OBJC_CLASS_$_"));
-    errs() << "Handling Class:" << ClassName << " With SuperClass:" << SuperClassName << "\n";
+    errs() << "Handling Class:" << ClassName
+           << " With SuperClass:" << SuperClassName << "\n";
 
     // Let's extract stuffs
     // struct _class_t {
@@ -234,23 +259,19 @@ struct AntiClassDump : public ModulePass {
                                 ->getOperand(0))
                             ->getOperand(0))
             : cast<GlobalVariable>(CS->getOperand(0));
-    GlobalVariable *class_ro =
-        cast<GlobalVariable>(
+    GlobalVariable *class_ro = cast<GlobalVariable>(
         appleptrauth
             ? opaquepointers
-                  ? cast<GlobalVariable>(
-                            CS->getOperand(4))
-                            ->getInitializer()
-                            ->getOperand(0)
-                      : cast<ConstantExpr>(
-                            cast<GlobalVariable>(
-                                cast<ConstantExpr>(
-                                    CS->getOperand(4))
-                                    ->getOperand(0))
-                                ->getInitializer()
-                                ->getOperand(0))
-                            ->getOperand(0)
-                : CS->getOperand(4));
+                  ? cast<GlobalVariable>(CS->getOperand(4))
+                        ->getInitializer()
+                        ->getOperand(0)
+                  : cast<ConstantExpr>(cast<GlobalVariable>(
+                                           cast<ConstantExpr>(CS->getOperand(4))
+                                               ->getOperand(0))
+                                           ->getInitializer()
+                                           ->getOperand(0))
+                        ->getOperand(0)
+            : CS->getOperand(4));
     assert(metaclassGV->hasInitializer() && "MetaClass GV Initializer Missing");
     GlobalVariable *metaclass_ro = cast<GlobalVariable>(
         appleptrauth
@@ -287,9 +308,9 @@ struct AntiClassDump : public ModulePass {
         // which contains {GEP(NAME),GEP(TYPE),BitCast(IMP)}
         // Let's extract these info now
         // methodStruct->getOperand(0)->getOperand(0) is SELName
-        GlobalVariable *SELNameGV =
-            cast<GlobalVariable>(
-            opaquepointers ? methodStruct->getOperand(0) : methodStruct->getOperand(0)->getOperand(0));
+        GlobalVariable *SELNameGV = cast<GlobalVariable>(
+            opaquepointers ? methodStruct->getOperand(0)
+                           : methodStruct->getOperand(0)->getOperand(0));
         ConstantDataSequential *SELNameCDS =
             cast<ConstantDataSequential>(SELNameGV->getInitializer());
         StringRef selname = SELNameCDS->getAsCString();
@@ -299,11 +320,14 @@ struct AntiClassDump : public ModulePass {
               appleptrauth
                   ? opaquepointers
                         ? cast<GlobalVariable>(methodStruct->getOperand(2))
-                              ->getInitializer()->getOperand(0)
+                              ->getInitializer()
+                              ->getOperand(0)
                         : cast<ConstantExpr>(
                               cast<GlobalVariable>(
                                   methodStruct->getOperand(2)->getOperand(0))
-                                  ->getInitializer()->getOperand(0))->getOperand(0)
+                                  ->getInitializer()
+                                  ->getOperand(0))
+                              ->getOperand(0)
               : opaquepointers ? methodStruct->getOperand(2)
                                : methodStruct->getOperand(2)->getOperand(0));
           errs() << "Found Existing initializer\n";
@@ -342,13 +366,26 @@ struct AntiClassDump : public ModulePass {
       HandleMethods(metaclassCS, IRB, M, Class, false);
 
       errs() << "Updating Class Method Map For Class:" << ClassName << "\n";
-      Type *objc_method_type = StructType::getTypeByName(M->getContext(), "struct._objc_method");
+      Type *objc_method_type =
+          StructType::getTypeByName(M->getContext(), "struct._objc_method");
       ArrayType *AT = ArrayType::get(objc_method_type, 0);
       Constant *newMethodList = ConstantArray::get(AT, ArrayRef<Constant *>());
       GlobalVariable *methodListGV = cast<GlobalVariable>(
           appleptrauth
               ? opaquepointers
-                    ? cast<GlobalVariable>(metaclassCS->getAggregateElement(5))->getInitializer()->getOperand(0) : cast<ConstantExpr>(cast<GlobalVariable>(metaclassCS->getAggregateElement(5)->getOperand(0))->getInitializer()->getOperand(0))->getOperand(0) : opaquepointers ? metaclassCS->getAggregateElement(5) : metaclassCS->getAggregateElement(5)->getOperand(0)); // is striped MethodListGV
+                    ? cast<GlobalVariable>(metaclassCS->getAggregateElement(5))
+                          ->getInitializer()
+                          ->getOperand(0)
+                    : cast<ConstantExpr>(
+                          cast<GlobalVariable>(
+                              metaclassCS->getAggregateElement(5)->getOperand(
+                                  0))
+                              ->getInitializer()
+                              ->getOperand(0))
+                          ->getOperand(0)
+          : opaquepointers ? metaclassCS->getAggregateElement(5)
+                           : metaclassCS->getAggregateElement(5)->getOperand(
+                                 0)); // is striped MethodListGV
       StructType *oldGVType =
           cast<StructType>(methodListGV->getInitializer()->getType());
       vector<Type *> newStructType;
@@ -374,17 +411,18 @@ struct AntiClassDump : public ModulePass {
       appendToCompilerUsed(*M, {newMethodStructGV});
       newMethodStructGV->copyAttributesFrom(methodListGV);
       Constant *bitcastExpr = ConstantExpr::getBitCast(
-          newMethodStructGV,
-          PointerType::getUnqual(StructType::getTypeByName(
-                                     M->getContext(), "struct.__method_list_t")));
+          newMethodStructGV, PointerType::getUnqual(StructType::getTypeByName(
+                                 M->getContext(), "struct.__method_list_t")));
       metaclassCS->handleOperandChange(metaclassCS->getAggregateElement(5),
-                                       opaquepointers ? newMethodStructGV : bitcastExpr);
+                                       opaquepointers ? newMethodStructGV
+                                                      : bitcastExpr);
       methodListGV->replaceAllUsesWith(
           opaquepointers
-              ? newMethodStructGV : ConstantExpr::getBitCast(
-          newMethodStructGV,
-          methodListGV->getType())); // llvm.compiler.used doesn't allow
-                                     // Null/Undef Value
+              ? newMethodStructGV
+              : ConstantExpr::getBitCast(
+                    newMethodStructGV,
+                    methodListGV->getType())); // llvm.compiler.used doesn't
+                                               // allow Null/Undef Value
       methodListGV->dropAllReferences();
       methodListGV->eraseFromParent();
       errs() << "Updated Instance Method Map of:" << class_ro->getName()
@@ -397,12 +435,13 @@ struct AntiClassDump : public ModulePass {
     if (!classCS->getAggregateElement(5)->isNullValue()) {
       errs() << "Handling Class Methods For Class:" << ClassName << "\n";
       HandleMethods(classCS, IRB, M, Class, true);
-      methodListGV =
-          cast<GlobalVariable>(
-          opaquepointers ? classCS->getAggregateElement(5) : classCS->getAggregateElement(5)->getOperand(0));
+      methodListGV = cast<GlobalVariable>(
+          opaquepointers ? classCS->getAggregateElement(5)
+                         : classCS->getAggregateElement(5)->getOperand(0));
     }
     errs() << "Updating Class Method Map For Class:" << ClassName << "\n";
-    Type *objc_method_type = StructType::getTypeByName(M->getContext(), "struct._objc_method");
+    Type *objc_method_type =
+        StructType::getTypeByName(M->getContext(), "struct._objc_method");
     ArrayType *AT = ArrayType::get(objc_method_type, 1);
     Constant *MethName = nullptr;
     if (UseInitialize) {
@@ -442,13 +481,15 @@ struct AntiClassDump : public ModulePass {
     // I'm fully aware that it's consistent Int32 on all platforms
     // This is future-proof
     newStructType.emplace_back(Type::getInt32Ty(M->getContext()));
-    newStructValue.emplace_back(ConstantInt::get(Type::getInt32Ty(M->getContext()),
-                                              0x18)); // 0x18 is extracted from
-                                                      // built-code on macOS.No
-                                                      // idea what does it mean
+    newStructValue.emplace_back(
+        ConstantInt::get(Type::getInt32Ty(M->getContext()),
+                         0x18)); // 0x18 is extracted from
+                                 // built-code on macOS.No
+                                 // idea what does it mean
     newStructType.emplace_back(Type::getInt32Ty(M->getContext()));
-    newStructValue.emplace_back(ConstantInt::get(Type::getInt32Ty(M->getContext()),
-                                              1)); // this is class count
+    newStructValue.emplace_back(
+        ConstantInt::get(Type::getInt32Ty(M->getContext()),
+                         1)); // this is class count
     newStructType.emplace_back(AT);
     newStructValue.emplace_back(newMethodList);
     StructType *newType =
@@ -464,20 +505,33 @@ struct AntiClassDump : public ModulePass {
       newMethodStructGV->copyAttributesFrom(
           appleptrauth
               ? opaquepointers
-                    ? cast<GlobalVariable>(methodListGV->getInitializer()->getOperand(0)) : cast<GlobalVariable>(cast<ConstantExpr>(methodListGV->getInitializer()->getOperand(0))->getOperand(0)) : methodListGV);
+                    ? cast<GlobalVariable>(
+                          methodListGV->getInitializer()->getOperand(0))
+                    : cast<GlobalVariable>(
+                          cast<ConstantExpr>(
+                              methodListGV->getInitializer()->getOperand(0))
+                              ->getOperand(0))
+              : methodListGV);
     }
     Constant *bitcastExpr = ConstantExpr::getBitCast(
-        newMethodStructGV,
-        PointerType::getUnqual(StructType::getTypeByName(
-                                   M->getContext(), "struct.__method_list_t")));
+        newMethodStructGV, PointerType::getUnqual(StructType::getTypeByName(
+                               M->getContext(), "struct.__method_list_t")));
     classCS->handleOperandChange(classCS->getAggregateElement(5), bitcastExpr);
     if (methodListGV) {
       methodListGV->replaceAllUsesWith(ConstantExpr::getBitCast(
           newMethodStructGV,
           appleptrauth
               ? opaquepointers
-                    ? cast<GlobalVariable>(methodListGV->getInitializer()->getOperand(0))->getType() : cast<GlobalVariable>(cast<ConstantExpr>(methodListGV->getInitializer()->getOperand(0))->getOperand(0))->getType() : methodListGV->getType())); // llvm.compiler.used doesn't allow
-                                     // Null/Undef Value
+                    ? cast<GlobalVariable>(
+                          methodListGV->getInitializer()->getOperand(0))
+                          ->getType()
+                    : cast<GlobalVariable>(
+                          cast<ConstantExpr>(
+                              methodListGV->getInitializer()->getOperand(0))
+                              ->getOperand(0))
+                          ->getType()
+              : methodListGV->getType())); // llvm.compiler.used doesn't allow
+                                           // Null/Undef Value
       methodListGV->dropAllReferences();
       methodListGV->eraseFromParent();
     }
@@ -498,16 +552,27 @@ struct AntiClassDump : public ModulePass {
         continue;
       }
       Type *type = tmp->getType();
-      if ((!opaquepointers &&  type == PointerType::getUnqual(objc_method_list_t_type)) || (opaquepointers && (tmp->getName().startswith("_OBJC_$_INSTANCE_METHODS") || tmp->getName().startswith("_OBJC_$_CLASS_METHODS")))) {
+      if ((!opaquepointers &&
+           type == PointerType::getUnqual(objc_method_list_t_type)) ||
+          (opaquepointers &&
+           (tmp->getName().startswith("_OBJC_$_INSTANCE_METHODS") ||
+            tmp->getName().startswith("_OBJC_$_CLASS_METHODS")))) {
         // Insert Methods
         ConstantExpr *methodListCE =
             opaquepointers ? nullptr : cast<ConstantExpr>(tmp);
         // Note:methodListCE is also a BitCastConstantExpr
-        GlobalVariable *methodListGV =
-            dyn_cast<GlobalVariable>(
+        GlobalVariable *methodListGV = dyn_cast<GlobalVariable>(
             appleptrauth
                 ? opaquepointers
-                      ? cast<GlobalVariable>(tmp)->getInitializer()->getOperand(0) : cast<ConstantExpr>(cast<GlobalVariable>(methodListCE->getOperand(0))->getInitializer()->getOperand(0))->getOperand(0) : opaquepointers ? tmp : methodListCE->getOperand(0));
+                      ? cast<GlobalVariable>(tmp)->getInitializer()->getOperand(
+                            0)
+                      : cast<ConstantExpr>(
+                            cast<GlobalVariable>(methodListCE->getOperand(0))
+                                ->getInitializer()
+                                ->getOperand(0))
+                            ->getOperand(0)
+            : opaquepointers ? tmp
+                             : methodListCE->getOperand(0));
         // Now BitCast is stripped out.
         assert(methodListGV->hasInitializer() &&
                "MethodListGV doesn't have initializer");
@@ -527,21 +592,31 @@ struct AntiClassDump : public ModulePass {
           // which contains {GEP(NAME),GEP(TYPE),IMP}
           // Let's extract these info now
           // We should first register the selector
-          Constant *SELName =
-              IRB->CreateGlobalStringPtr(cast<ConstantDataSequential>(cast<GlobalVariable>(
+          Constant *SELName = IRB->CreateGlobalStringPtr(
+              cast<ConstantDataSequential>(
+                  cast<GlobalVariable>(
                       opaquepointers
-                          ?
-                                                                                                                 methodStruct->getOperand(0) :
-                                                                                                                 cast<ConstantExpr>(methodStruct->getOperand(0))->getOperand(0))->getInitializer())->getAsCString());
-          CallInst *SEL =
-              IRB->CreateCall(sel_registerName, {SELName});
+                          ? methodStruct->getOperand(0)
+                          : cast<ConstantExpr>(methodStruct->getOperand(0))
+                                ->getOperand(0))
+                      ->getInitializer())
+                  ->getAsCString());
+          CallInst *SEL = IRB->CreateCall(sel_registerName, {SELName});
           Type *IMPType =
               class_replaceMethod->getFunctionType()->getParamType(2);
-          Value *BitCastedIMP =
-              IRB->CreateBitCast(
+          Value *BitCastedIMP = IRB->CreateBitCast(
               appleptrauth
                   ? opaquepointers
-                        ? cast<GlobalVariable>(methodStruct->getOperand(2))->getInitializer()->getOperand(0) : cast<ConstantExpr>(cast<GlobalVariable>(methodStruct->getOperand(2))->getInitializer()->getOperand(0))->getOperand(0) : methodStruct->getOperand(2), IMPType);
+                        ? cast<GlobalVariable>(methodStruct->getOperand(2))
+                              ->getInitializer()
+                              ->getOperand(0)
+                        : cast<ConstantExpr>(
+                              cast<GlobalVariable>(methodStruct->getOperand(2))
+                                  ->getInitializer()
+                                  ->getOperand(0))
+                              ->getOperand(0)
+                  : methodStruct->getOperand(2),
+              IMPType);
           vector<Value *> replaceMethodArgs;
           if (isMetaClass) {
             CallInst *className = IRB->CreateCall(class_getName, {Class});
@@ -551,11 +626,17 @@ struct AntiClassDump : public ModulePass {
           } else {
             replaceMethodArgs.emplace_back(Class); // Class
           }
-          replaceMethodArgs.emplace_back(SEL);                         // SEL
-          replaceMethodArgs.emplace_back(BitCastedIMP);                // imp
-          replaceMethodArgs.emplace_back(IRB->CreateGlobalStringPtr(cast<ConstantDataSequential>(cast<GlobalVariable>(
+          replaceMethodArgs.emplace_back(SEL);          // SEL
+          replaceMethodArgs.emplace_back(BitCastedIMP); // imp
+          replaceMethodArgs.emplace_back(IRB->CreateGlobalStringPtr(
+              cast<ConstantDataSequential>(
+                  cast<GlobalVariable>(
                       opaquepointers
-                          ? methodStruct->getOperand(1) : cast<ConstantExpr>(methodStruct->getOperand(1))->getOperand(0))->getInitializer())->getAsCString())); // type
+                          ? methodStruct->getOperand(1)
+                          : cast<ConstantExpr>(methodStruct->getOperand(1))
+                                ->getOperand(0))
+                      ->getInitializer())
+                  ->getAsCString())); // type
           IRB->CreateCall(class_replaceMethod,
                           ArrayRef<Value *>(replaceMethodArgs));
           if (RenameMethodIMP) {
@@ -563,10 +644,14 @@ struct AntiClassDump : public ModulePass {
                 appleptrauth
                     ? opaquepointers
                           ? cast<GlobalVariable>(methodStruct->getOperand(2))
-                                ->getInitializer()->getOperand(0)
-                          : cast<ConstantExpr>(cast<GlobalVariable>(
+                                ->getInitializer()
+                                ->getOperand(0)
+                          : cast<ConstantExpr>(
+                                cast<GlobalVariable>(
                                     methodStruct->getOperand(2)->getOperand(0))
-                                    ->getInitializer()->getOperand(0))->getOperand(0)
+                                    ->getInitializer()
+                                    ->getOperand(0))
+                                ->getOperand(0)
                 : opaquepointers ? methodStruct->getOperand(2)
                                  : methodStruct->getOperand(2)->getOperand(0));
             MethodIMP->setName("ACDMethodIMP");

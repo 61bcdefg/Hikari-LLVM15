@@ -136,118 +136,124 @@ struct AntiDebugging : public ModulePass {
     Function *ADBCallBack = F.getParent()->getFunction("ADBCallBack");
     Function *ADBInit = F.getParent()->getFunction("InitADB");
     if (ADBCallBack && ADBInit) {
-      CallInst::Create(ADBInit, "", cast<Instruction>(EntryBlock->getFirstInsertionPt()));
-    }
-    else {
+      CallInst::Create(ADBInit, "",
+                       cast<Instruction>(EntryBlock->getFirstInsertionPt()));
+    } else {
       errs() << "The ADBCallBack and ADBInit functions were not found\n";
-      if (!F.getReturnType()->isVoidTy()) // We insert InlineAsm in the Terminator, which causes register contamination if the return type is not Void.
+      if (!F.getReturnType()
+               ->isVoidTy()) // We insert InlineAsm in the Terminator, which
+                             // causes register contamination if the return type
+                             // is not Void.
         return false;
       Triple Tri(F.getParent()->getTargetTriple());
       if (Tri.isOSDarwin() && Tri.isAArch64()) {
-        errs() << "Injecting Inline Assembly AntiDebugging For:" << F.getParent()->getTargetTriple() << "\n";
+        errs() << "Injecting Inline Assembly AntiDebugging For:"
+               << F.getParent()->getTargetTriple() << "\n";
         string antidebugasm = "";
         switch (cryptoutils->get_range(2)) {
-          case 0: {
-            string s[] = {"mov x0, #31\n", "mov w0, #31\n", "mov x1, #0\n",
-                          "mov w1, #0\n", "mov x2, #0\n", "mov w2, #0\n",
-                          "mov x3, #0\n", "mov w3, #0\n", "mov x16, #26\n",
-                          "mov w16, #26\n"
-            }; // svc ptrace
-            bool c[5] = {false, false, false, false, false};
-            while (c[0] != true || c[1] != true || c[2] != true || c[3] != true || c[4] != true) {
-              switch (cryptoutils->get_range(5)) {
-              case 0:
-                if (!c[0]) {
-                  antidebugasm += s[cryptoutils->get_range(2)];
-                  c[0] = true;
-                }
-                break;
-              case 1:
-                if (!c[1]) {
-                  antidebugasm += s[2 + cryptoutils->get_range(2)];
-                  c[1] = true;
-                }
-                break;
-              case 2:
-                if (!c[2]) {
-                  antidebugasm += s[4 + cryptoutils->get_range(2)];
-                  c[2] = true;
-                }
-                break;
-              case 3:
-                if (!c[3]) {
-                  antidebugasm += s[6 + cryptoutils->get_range(2)];
-                  c[3] = true;
-                }
-                break;
-              case 4:
-                if (!c[4]) {
-                  antidebugasm += s[8 + cryptoutils->get_range(2)];
-                  c[4] = true;
-                }
-                break;
-              default:
-                break;
+        case 0: {
+          string s[] = {"mov x0, #31\n", "mov w0, #31\n", "mov x1, #0\n",
+                        "mov w1, #0\n",  "mov x2, #0\n",  "mov w2, #0\n",
+                        "mov x3, #0\n",  "mov w3, #0\n",  "mov x16, #26\n",
+                        "mov w16, #26\n"}; // svc ptrace
+          bool c[5] = {false, false, false, false, false};
+          while (c[0] != true || c[1] != true || c[2] != true || c[3] != true ||
+                 c[4] != true) {
+            switch (cryptoutils->get_range(5)) {
+            case 0:
+              if (!c[0]) {
+                antidebugasm += s[cryptoutils->get_range(2)];
+                c[0] = true;
               }
-            }
-            break;
-          }
-          case 1: {
-            string s[] = {"mov x0, #26\n", "mov w0, #26\n", "mov x1, #31\n",
-                          "mov w1, #31\n",  "mov x2, #0\n",  "mov w2, #0\n",
-                          "mov x3, #0\n",  "mov w3, #0\n",  "mov x16, #0\n",
-                          "mov w16, #0\n"
-            }; // svc syscall ptrace
-            bool c[5] = {false, false, false, false, false};
-            while (c[0] != true || c[1] != true || c[2] != true || c[3] != true || c[4] != true) {
-              switch (cryptoutils->get_range(5)) {
-              case 0:
-                if (!c[0]) {
-                  antidebugasm += s[cryptoutils->get_range(2)];
-                  c[0] = true;
-                }
-                break;
-              case 1:
-                if (!c[1]) {
-                  antidebugasm += s[2 + cryptoutils->get_range(2)];
-                  c[1] = true;
-                }
-                break;
-              case 2:
-                if (!c[2]) {
-                  antidebugasm += s[4 + cryptoutils->get_range(2)];
-                  c[2] = true;
-                }
-                break;
-              case 3:
-                if (!c[3]) {
-                  antidebugasm += s[6 + cryptoutils->get_range(2)];
-                  c[3] = true;
-                }
-                break;
-              case 4:
-                if (!c[4]) {
-                  antidebugasm += s[8 + cryptoutils->get_range(2)];
-                  c[4] = true;
-                }
-                break;
-              default:
-                break;
+              break;
+            case 1:
+              if (!c[1]) {
+                antidebugasm += s[2 + cryptoutils->get_range(2)];
+                c[1] = true;
               }
+              break;
+            case 2:
+              if (!c[2]) {
+                antidebugasm += s[4 + cryptoutils->get_range(2)];
+                c[2] = true;
+              }
+              break;
+            case 3:
+              if (!c[3]) {
+                antidebugasm += s[6 + cryptoutils->get_range(2)];
+                c[3] = true;
+              }
+              break;
+            case 4:
+              if (!c[4]) {
+                antidebugasm += s[8 + cryptoutils->get_range(2)];
+                c[4] = true;
+              }
+              break;
+            default:
+              break;
             }
-            break;
           }
+          break;
         }
-        antidebugasm += "svc #" + to_string(cryptoutils->get_range(65536)) + "\n";
-        InlineAsm *IA = InlineAsm::get(FunctionType::get(Type::getVoidTy(EntryBlock->getContext()), false),
+        case 1: {
+          string s[] = {"mov x0, #26\n", "mov w0, #26\n", "mov x1, #31\n",
+                        "mov w1, #31\n", "mov x2, #0\n",  "mov w2, #0\n",
+                        "mov x3, #0\n",  "mov w3, #0\n",  "mov x16, #0\n",
+                        "mov w16, #0\n"}; // svc syscall ptrace
+          bool c[5] = {false, false, false, false, false};
+          while (c[0] != true || c[1] != true || c[2] != true || c[3] != true ||
+                 c[4] != true) {
+            switch (cryptoutils->get_range(5)) {
+            case 0:
+              if (!c[0]) {
+                antidebugasm += s[cryptoutils->get_range(2)];
+                c[0] = true;
+              }
+              break;
+            case 1:
+              if (!c[1]) {
+                antidebugasm += s[2 + cryptoutils->get_range(2)];
+                c[1] = true;
+              }
+              break;
+            case 2:
+              if (!c[2]) {
+                antidebugasm += s[4 + cryptoutils->get_range(2)];
+                c[2] = true;
+              }
+              break;
+            case 3:
+              if (!c[3]) {
+                antidebugasm += s[6 + cryptoutils->get_range(2)];
+                c[3] = true;
+              }
+              break;
+            case 4:
+              if (!c[4]) {
+                antidebugasm += s[8 + cryptoutils->get_range(2)];
+                c[4] = true;
+              }
+              break;
+            default:
+              break;
+            }
+          }
+          break;
+        }
+        }
+        antidebugasm +=
+            "svc #" + to_string(cryptoutils->get_range(65536)) + "\n";
+        InlineAsm *IA = InlineAsm::get(
+            FunctionType::get(Type::getVoidTy(EntryBlock->getContext()), false),
             antidebugasm, "", true, false);
         Instruction *I = nullptr;
         for (BasicBlock &BB : F)
           I = BB.getTerminator();
         CallInst::Create(IA, None, "", I);
-      }
-      else {
-        errs() << "Unsupported Inline Assembly AntiDebugging Target: " << F.getParent()->getTargetTriple() << "\n";
+      } else {
+        errs() << "Unsupported Inline Assembly AntiDebugging Target: "
+               << F.getParent()->getTargetTriple() << "\n";
       }
     }
     return true;

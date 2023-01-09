@@ -1,4 +1,5 @@
-//===- SubstitutionIncludes.h - Substitution Obfuscation pass-------------------------===//
+//===- SubstitutionIncludes.h - Substitution Obfuscation
+//pass-------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,15 +15,14 @@
 #ifndef _SUBSTITUTIONS_H_
 #define _SUBSTITUTIONS_H_
 
-
 // LLVM include
-#include "llvm/Pass.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/Transforms/IPO.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Obfuscation/CryptoUtils.h"
 #if LLVM_VERSION_MAJOR >= 15
 #include "llvm/IR/Constants.h"
@@ -33,8 +33,8 @@ using namespace llvm;
 using namespace std;
 
 namespace llvm {
-	FunctionPass *createSubstitutionPass(bool flag);
-	void initializeSubstitutionPass(PassRegistry &Registry);
-}
+FunctionPass *createSubstitutionPass(bool flag);
+void initializeSubstitutionPass(PassRegistry &Registry);
+} // namespace llvm
 
 #endif

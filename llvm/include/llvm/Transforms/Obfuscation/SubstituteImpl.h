@@ -9,6 +9,6 @@ void substituteAnd(BinaryOperator *bo);
 void substituteOr(BinaryOperator *bo);
 void substituteXor(BinaryOperator *bo);
 void substituteMul(BinaryOperator *bo);
-}
+} // namespace SubstituteImpl
 
 #endif

@@ -1,8 +1,9 @@
-// For open-source license, please refer to [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
+// For open-source license, please refer to
+// [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
 //===----------------------------------------------------------------------===//
-#include "llvm/Transforms/Obfuscation/Obfuscation.h"
-#include "llvm/Transforms/Obfuscation/CryptoUtils.h"
 #include "llvm/IR/InstIterator.h"
+#include "llvm/Transforms/Obfuscation/CryptoUtils.h"
+#include "llvm/Transforms/Obfuscation/Obfuscation.h"
 #include "llvm/Transforms/Obfuscation/compat/LegacyLowerSwitch.h"
 #include <fcntl.h>
 using namespace llvm;
@@ -47,7 +48,7 @@ bool Flattening::flatten(Function *f) {
   AllocaInst *switchVar;
 
   // SCRAMBLER
-  map<uint32_t,uint32_t> scrambling_key;
+  map<uint32_t, uint32_t> scrambling_key;
   // END OF SCRAMBLER
 
   // Lower switch
@@ -65,8 +66,10 @@ bool Flattening::flatten(Function *f) {
     if (std::find(exceptBB.begin(), exceptBB.end(), &BB) == exceptBB.end())
       origBB.emplace_back(&BB);
 
-    if (!isa<BranchInst>(BB.getTerminator()) && !isa<ReturnInst>(BB.getTerminator()) &&
-        !isa<InvokeInst>(BB.getTerminator()) && !isa<ResumeInst>(BB.getTerminator()) &&
+    if (!isa<BranchInst>(BB.getTerminator()) &&
+        !isa<ReturnInst>(BB.getTerminator()) &&
+        !isa<InvokeInst>(BB.getTerminator()) &&
+        !isa<ResumeInst>(BB.getTerminator()) &&
         !isa<UnreachableInst>(BB.getTerminator()))
       return false;
   }
@@ -84,7 +87,8 @@ bool Flattening::flatten(Function *f) {
 
   // If main begin with an if or throw
   Instruction *br = nullptr;
-  if (isa<BranchInst>(insert->getTerminator()) || isa<InvokeInst>(insert->getTerminator()))
+  if (isa<BranchInst>(insert->getTerminator()) ||
+      isa<InvokeInst>(insert->getTerminator()))
     br = insert->getTerminator();
 
   if (br) { // https://github.com/eshard/obfuscator-llvm/commit/af789724563ff3d300317fe4a9a9b0f3a88007eb
@@ -99,11 +103,11 @@ bool Flattening::flatten(Function *f) {
   }
 
   // Remove jump
-  Instruction* oldTerm = insert->getTerminator();
+  Instruction *oldTerm = insert->getTerminator();
 
   // Create switch variable and set as it
-  switchVar =
-      new AllocaInst(Type::getInt32Ty(f->getContext()), 0, "switchVar",oldTerm);
+  switchVar = new AllocaInst(Type::getInt32Ty(f->getContext()), 0, "switchVar",
+                             oldTerm);
   oldTerm->eraseFromParent();
   new StoreInst(
       ConstantInt::get(Type::getInt32Ty(f->getContext()),
@@ -114,7 +118,8 @@ bool Flattening::flatten(Function *f) {
   loopEntry = BasicBlock::Create(f->getContext(), "loopEntry", f, insert);
   loopEnd = BasicBlock::Create(f->getContext(), "loopEnd", f, insert);
 
-  load = new LoadInst(switchVar->getAllocatedType(), switchVar, "switchVar", loopEntry);
+  load = new LoadInst(switchVar->getAllocatedType(), switchVar, "switchVar",
+                      loopEntry);
 
   // Move first BB on top
   insert->moveBefore(loopEntry);
@@ -236,9 +241,9 @@ bool Flattening::flatten(Function *f) {
       continue;
     }
   }
-  errs()<<"Fixing Stack\n";
+  errs() << "Fixing Stack\n";
   fixStack(f);
-  errs()<<"Fixed Stack\n";
+  errs() << "Fixed Stack\n";
 
   return true;
 }

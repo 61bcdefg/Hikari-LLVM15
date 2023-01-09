@@ -1,4 +1,5 @@
-// For open-source license, please refer to [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
+// For open-source license, please refer to
+// [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
 //===----------------------------------------------------------------------===//
 //===- BogusControlFlow.cpp - BogusControlFlow Obfuscation
 // pass-------------------------===//
@@ -92,14 +93,13 @@
 
 #include "llvm/Transforms/Obfuscation/BogusControlFlow.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/NoFolder.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Transforms/Obfuscation/Utils.h"
 #include "llvm/Transforms/Utils/Local.h"
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/InlineAsm.h"
 #include <memory>
-
 
 // Options for the pass
 const int defaultObfRate = 70, defaultObfTime = 1;
@@ -129,50 +129,47 @@ static cl::opt<bool> JunkAssembly(
 static cl::opt<int> MaxNumberOfJunkAssembly(
     "bcf_junkasm_maxnum",
     cl::desc("The maximum number of junk assembliy per altered basic block"),
-    cl::value_desc("max number of junk assembly"),
-    cl::init(3), cl::Optional);
+    cl::value_desc("max number of junk assembly"), cl::init(3), cl::Optional);
 static cl::opt<int> MinNumberOfJunkAssembly(
     "bcf_junkasm_minnum",
     cl::desc("The minimum number of junk assembliy per altered basic block"),
     cl::value_desc("min number of junk assembly"), cl::init(1), cl::Optional);
 static cl::opt<bool> CreateFunctionForOpaquePredicate(
-    "bcf_createfunc",
-    cl::desc("Create function for each opaque predicate"),
+    "bcf_createfunc", cl::desc("Create function for each opaque predicate"),
     cl::value_desc("create function"), cl::init(false), cl::Optional);
 
-static Instruction::BinaryOps ops[] = {Instruction::Add, Instruction::Sub,
-                                       Instruction::And, Instruction::Or,
-                                       Instruction::Xor, Instruction::Mul,
-                                       Instruction::UDiv};
+static Instruction::BinaryOps ops[] = {
+    Instruction::Add, Instruction::Sub, Instruction::And, Instruction::Or,
+    Instruction::Xor, Instruction::Mul, Instruction::UDiv};
 static CmpInst::Predicate preds[] = {CmpInst::ICMP_EQ,  CmpInst::ICMP_NE,
                                      CmpInst::ICMP_UGT, CmpInst::ICMP_UGE,
                                      CmpInst::ICMP_ULT, CmpInst::ICMP_ULE};
 namespace {
-  static bool OnlyUsedBy(Value *V, Value *Usr) {
-    for (User *U : V->users())
-      if (U != Usr)
-        return false;
-    return true;
-  }
-  static void RemoveDeadConstant(Constant *C) {
-    assert(C->use_empty() && "Constant is not dead!");
-    SmallPtrSet<Constant*, 4> Operands;
-    for (Value *Op : C->operands())
-      if (OnlyUsedBy(Op, C))
-        Operands.insert(cast<Constant>(Op));
-    if (GlobalVariable *GV = dyn_cast<GlobalVariable>(C)) {
-      if (!GV->hasLocalLinkage()) return;   // Don't delete non-static globals.
-      GV->eraseFromParent();
-    }
-    else if (!isa<Function>(C))
-      if (isa<ArrayType>(C->getType()) || isa<StructType>(C->getType()) ||
-          isa<VectorType>(C->getType()))
-        C->destroyConstant();
+static bool OnlyUsedBy(Value *V, Value *Usr) {
+  for (User *U : V->users())
+    if (U != Usr)
+      return false;
+  return true;
+}
+static void RemoveDeadConstant(Constant *C) {
+  assert(C->use_empty() && "Constant is not dead!");
+  SmallPtrSet<Constant *, 4> Operands;
+  for (Value *Op : C->operands())
+    if (OnlyUsedBy(Op, C))
+      Operands.insert(cast<Constant>(Op));
+  if (GlobalVariable *GV = dyn_cast<GlobalVariable>(C)) {
+    if (!GV->hasLocalLinkage())
+      return; // Don't delete non-static globals.
+    GV->eraseFromParent();
+  } else if (!isa<Function>(C))
+    if (isa<ArrayType>(C->getType()) || isa<StructType>(C->getType()) ||
+        isa<VectorType>(C->getType()))
+      C->destroyConstant();
 
-    // If the constant referenced anything, see if we can delete it as well.
-    for (Constant *O : Operands)
-      RemoveDeadConstant(O);
-  }
+  // If the constant referenced anything, see if we can delete it as well.
+  for (Constant *O : Operands)
+    RemoveDeadConstant(O);
+}
 struct BogusControlFlow : public FunctionPass {
   static char ID; // Pass identification
   bool flag;
@@ -272,25 +269,30 @@ struct BogusControlFlow : public FunctionPass {
     if (basicBlock->getFirstNonPHIOrDbgOrLifetime())
       i1 = (BasicBlock::iterator)basicBlock->getFirstNonPHIOrDbgOrLifetime();
 
-        // https://github.com/eshard/obfuscator-llvm/commit/85c8719c86bcb4784f5a436e28f3496e91cd6292
-        /* TODO: find a real fix or try with the probe-stack inline-asm when its
-       * ready. See https://github.com/Rust-for-Linux/linux/issues/355. Sometimes
-       * moving an alloca from the entry block to the second block causes a segfault when using the "probe-stack" attribute (observed with with Rust programs). To avoid this issue we just split the entry block after the allocas in this case.
-         */
-        if (F.hasFnAttribute("probe-stack") && basicBlock->isEntryBlock()) {
-          // Find the first non alloca instruction
-          while ((i1 != basicBlock->end()) && isa<AllocaInst>(i1))
-            i1++;
+    // https://github.com/eshard/obfuscator-llvm/commit/85c8719c86bcb4784f5a436e28f3496e91cd6292
+    /* TODO: find a real fix or try with the probe-stack inline-asm when its
+     * ready. See https://github.com/Rust-for-Linux/linux/issues/355. Sometimes
+     * moving an alloca from the entry block to the second block causes a
+     * segfault when using the "probe-stack" attribute (observed with with Rust
+     * programs). To avoid this issue we just split the entry block after the
+     * allocas in this case.
+     */
+    if (F.hasFnAttribute("probe-stack") && basicBlock->isEntryBlock()) {
+      // Find the first non alloca instruction
+      while ((i1 != basicBlock->end()) && isa<AllocaInst>(i1))
+        i1++;
 
-          // If there are no other kind of instruction we just don't split that entry block
-          if (i1 == basicBlock->end())
-            return;
-        }
+      // If there are no other kind of instruction we just don't split that
+      // entry block
+      if (i1 == basicBlock->end())
+        return;
+    }
 
     BasicBlock *originalBB = basicBlock->splitBasicBlock(i1, "originalBB");
 
     // Creating the altered basic block on which the first basicBlock will jump
-    BasicBlock *alteredBB = createAlteredBasicBlock(originalBB, "alteredBB", &F);
+    BasicBlock *alteredBB =
+        createAlteredBasicBlock(originalBB, "alteredBB", &F);
 
     // Now that all the blocks are created,
     // we modify the terminators to adjust the control flow.
@@ -302,14 +304,14 @@ struct BogusControlFlow : public FunctionPass {
     // For now, the condition is an always true comparaison between 2 float
     // This will be complicated after the pass (in doFinalization())
 
-    // We need to use ConstantInt instead of ConstantFP as ConstantFP results in strange dead-loop
-    // when injected into Xcode
+    // We need to use ConstantInt instead of ConstantFP as ConstantFP results in
+    // strange dead-loop when injected into Xcode
     Value *LHS = ConstantInt::get(Type::getInt32Ty(F.getContext()), 1);
     Value *RHS = ConstantInt::get(Type::getInt32Ty(F.getContext()), 1);
 
     // The always true condition. End of the first block
-    ICmpInst *condition =
-        new ICmpInst(*basicBlock, ICmpInst::ICMP_EQ, LHS, RHS,"BCFPlaceHolderPred");
+    ICmpInst *condition = new ICmpInst(*basicBlock, ICmpInst::ICMP_EQ, LHS, RHS,
+                                       "BCFPlaceHolderPred");
     needtoedit.emplace_back(condition);
 
     // Jump to the original basic block if the condition is true or
@@ -329,13 +331,14 @@ struct BogusControlFlow : public FunctionPass {
     BasicBlock::iterator i = originalBB->end();
 
     // Split at this point (we only want the terminator in the second part)
-    BasicBlock *originalBBpart2 = originalBB->splitBasicBlock(--i, "originalBBpart2");
+    BasicBlock *originalBBpart2 =
+        originalBB->splitBasicBlock(--i, "originalBBpart2");
     // the first part go either on the return statement or on the begining
     // of the altered block.. So we erase the terminator created when splitting.
     originalBB->getTerminator()->eraseFromParent();
     // We add at the end a new always true condition
-    ICmpInst *condition2 =
-        new ICmpInst(*originalBB, CmpInst::ICMP_EQ, LHS, RHS,"BCFPlaceHolderPred");
+    ICmpInst *condition2 = new ICmpInst(*originalBB, CmpInst::ICMP_EQ, LHS, RHS,
+                                        "BCFPlaceHolderPred");
     needtoedit.emplace_back(condition2);
     // Do random behavior to avoid pattern recognition.
     // This is achieved by jumping to a random BB
@@ -365,8 +368,8 @@ struct BogusControlFlow : public FunctionPass {
    * behave nicely.
    */
   BasicBlock *createAlteredBasicBlock(BasicBlock *basicBlock,
-                                              const Twine &Name = "gen",
-                                              Function *F = nullptr) {
+                                      const Twine &Name = "gen",
+                                      Function *F = nullptr) {
     // Useful to remap the informations concerning instructions.
     ValueToValueMapTy VMap;
     BasicBlock *alteredBB = CloneBasicBlock(basicBlock, VMap, Name, F);
@@ -378,7 +381,9 @@ struct BogusControlFlow : public FunctionPass {
       for (User::op_iterator opi = i->op_begin(), ope = i->op_end(); opi != ope;
            ++opi) {
         // get the value for the operand
-        Value *v = MapValue(*opi, VMap, RF_NoModuleLevelChanges, 0); // https://github.com/eshard/obfuscator-llvm/commit/e8ba79332bd63a3eb38eb85a636951f1cb1f22df
+        Value *v = MapValue(
+            *opi, VMap, RF_NoModuleLevelChanges,
+            0); // https://github.com/eshard/obfuscator-llvm/commit/e8ba79332bd63a3eb38eb85a636951f1cb1f22df
         if (v != 0)
           *opi = v;
       }
@@ -555,7 +560,7 @@ struct BogusControlFlow : public FunctionPass {
     }
     // Remove DIs from AlterBB
     vector<CallInst *> toRemove;
-    vector<Constant*> DeadConstants;
+    vector<Constant *> DeadConstants;
     for (Instruction &I : *alteredBB) {
       if (CallInst *CI = dyn_cast<CallInst>(&I)) {
         if (CI->getCalledFunction() != nullptr &&
@@ -585,17 +590,19 @@ struct BogusControlFlow : public FunctionPass {
       if (GlobalVariable *GV = dyn_cast<GlobalVariable>(C)) {
         if (GV->hasLocalLinkage())
           RemoveDeadConstant(GV);
-      }
-      else {
+      } else {
         RemoveDeadConstant(C);
       }
     }
     if (JunkAssembly) {
       string junk = "";
-      for (uint32_t i = cryptoutils->get_range(MinNumberOfJunkAssembly, MaxNumberOfJunkAssembly); i > 0; i--)
+      for (uint32_t i = cryptoutils->get_range(MinNumberOfJunkAssembly,
+                                               MaxNumberOfJunkAssembly);
+           i > 0; i--)
         junk += ".long " + to_string(cryptoutils->get_uint32_t()) + "\n";
       InlineAsm *IA = InlineAsm::get(
-          FunctionType::get(Type::getVoidTy(alteredBB->getContext()), false), junk, "", true, false);
+          FunctionType::get(Type::getVoidTy(alteredBB->getContext()), false),
+          junk, "", true, false);
       CallInst::Create(IA, None, "", &*alteredBB->getFirstInsertionPt());
     }
     return alteredBB;
@@ -603,7 +610,8 @@ struct BogusControlFlow : public FunctionPass {
 
   /* doF
    *
-   * This part obfuscate the always true predicates generated in addBogusFlow() of the function.
+   * This part obfuscate the always true predicates generated in addBogusFlow()
+   * of the function.
    */
   bool doF(Function &F) {
     vector<Instruction *> toEdit, toDelete;
@@ -614,7 +622,7 @@ struct BogusControlFlow : public FunctionPass {
         if (br->isConditional()) {
           ICmpInst *cond = dyn_cast<ICmpInst>(br->getCondition());
           if (cond && std::find(needtoedit.begin(), needtoedit.end(), cond) !=
-              needtoedit.end()) {
+                          needtoedit.end()) {
             toDelete.emplace_back(cond); // The condition
             toEdit.emplace_back(tbb);    // The branch using the condition
           }
@@ -630,10 +638,9 @@ struct BogusControlFlow : public FunctionPass {
       // Since IRBuilder<> uses ConstantFolding to fold constants.
       // The return instruction is already returning constants
       // The variable names below are the artifact from the Emulation Era
-      Function *emuFunction =
-          Function::Create(FunctionType::get(I32Ty, false),
-                           GlobalValue::LinkageTypes::PrivateLinkage,
-                           "HikariBCFEmuFunction", M);
+      Function *emuFunction = Function::Create(
+          FunctionType::get(I32Ty, false),
+          GlobalValue::LinkageTypes::PrivateLinkage, "HikariBCFEmuFunction", M);
       BasicBlock *emuEntryBlock =
           BasicBlock::Create(emuFunction->getContext(), "", emuFunction);
 
@@ -657,8 +664,10 @@ struct BogusControlFlow : public FunctionPass {
       // First,Construct a real RHS that will be used in the actual condition
       Constant *RealRHS = ConstantInt::get(I32Ty, cryptoutils->get_uint32_t());
       // Prepare Initial LHS and RHS to bootstrap the emulator
-      Constant *LHSC = ConstantInt::get(I32Ty, cryptoutils->get_range(1, UINT32_MAX));
-      Constant *RHSC = ConstantInt::get(I32Ty, cryptoutils->get_range(1, UINT32_MAX));
+      Constant *LHSC =
+          ConstantInt::get(I32Ty, cryptoutils->get_range(1, UINT32_MAX));
+      Constant *RHSC =
+          ConstantInt::get(I32Ty, cryptoutils->get_range(1, UINT32_MAX));
       GlobalVariable *LHSGV =
           new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false,
                              GlobalValue::PrivateLinkage, LHSC, "LHSGV");
@@ -675,26 +684,29 @@ struct BogusControlFlow : public FunctionPass {
       // To Speed-Up Evaluation
       Value *emuLHS = LHSC;
       Value *emuRHS = RHSC;
-      Instruction::BinaryOps initialOp = ops[llvm::cryptoutils->get_range(sizeof(ops) / sizeof(ops[0]))];
+      Instruction::BinaryOps initialOp =
+          ops[llvm::cryptoutils->get_range(sizeof(ops) / sizeof(ops[0]))];
       Value *emuLast =
           IRBEmu.CreateBinOp(initialOp, emuLHS, emuRHS, "EmuInitialCondition");
       Value *Last = (CreateFunctionForOpaquePredicate ? IRBOp : IRBReal)
                         ->CreateBinOp(initialOp, LHS, RHS, "InitialCondition");
       for (int i = 0; i < ConditionExpressionComplexity; i++) {
-        Constant *newTmp = ConstantInt::get(I32Ty, cryptoutils->get_range(1, UINT32_MAX));
+        Constant *newTmp =
+            ConstantInt::get(I32Ty, cryptoutils->get_range(1, UINT32_MAX));
         Instruction::BinaryOps initialOp2 =
             ops[llvm::cryptoutils->get_range(sizeof(ops) / sizeof(ops[0]))];
         emuLast = IRBEmu.CreateBinOp(initialOp2, emuLast, newTmp,
                                      "EmuInitialCondition");
-        Last = (CreateFunctionForOpaquePredicate ? IRBOp : IRBReal)->CreateBinOp(initialOp2, Last, newTmp, "InitialCondition");
+        Last = (CreateFunctionForOpaquePredicate ? IRBOp : IRBReal)
+                   ->CreateBinOp(initialOp2, Last, newTmp, "InitialCondition");
       }
       // Randomly Generate Predicate
-      CmpInst::Predicate pred = preds[llvm::cryptoutils->get_range(sizeof(preds) / sizeof(preds[0]))];
+      CmpInst::Predicate pred =
+          preds[llvm::cryptoutils->get_range(sizeof(preds) / sizeof(preds[0]))];
       if (CreateFunctionForOpaquePredicate) {
         IRBOp->CreateRet(IRBOp->CreateICmp(pred, Last, RealRHS));
         Last = IRBReal->CreateCall(opFunction);
-      }
-      else
+      } else
         Last = IRBReal->CreateICmp(pred, Last, RealRHS);
       emuLast = IRBEmu.CreateICmp(pred, emuLast, RealRHS);
       ReturnInst *RI = IRBEmu.CreateRet(emuLast);

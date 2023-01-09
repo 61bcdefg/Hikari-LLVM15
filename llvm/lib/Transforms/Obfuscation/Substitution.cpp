@@ -1,10 +1,11 @@
-// For open-source license, please refer to [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
+// For open-source license, please refer to
+// [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
 //===----------------------------------------------------------------------===//
-#include "llvm/Transforms/Obfuscation/SubstituteImpl.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Obfuscation/SubstituteImpl.h"
 #include "llvm/Transforms/Obfuscation/Utils.h"
 
 #define DEBUG_TYPE "substitution"
@@ -22,7 +23,7 @@ static cl::opt<unsigned int>
 // Stats
 STATISTIC(Add, "Add substitued");
 STATISTIC(Sub, "Sub substitued");
-STATISTIC(Mul,  "Mul substitued");
+STATISTIC(Mul, "Mul substitued");
 // STATISTIC(Div,  "Div substitued");
 // STATISTIC(Rem,  "Rem substitued");
 // STATISTIC(Shi,  "Shift substitued");

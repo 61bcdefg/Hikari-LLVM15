@@ -1,6 +1,8 @@
-// For open-source license, please refer to [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
+// For open-source license, please refer to
+// [License](https://github.com/HikariObfuscator/Hikari/wiki/License).
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/Obfuscation/FunctionWrapper.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
@@ -9,10 +11,9 @@
 #include "llvm/IR/Value.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Obfuscation/CryptoUtils.h"
-#include "llvm/Transforms/Obfuscation/FunctionWrapper.h"
 #include "llvm/Transforms/Obfuscation/Utils.h"
-#include "llvm/Transforms/Utils/ModuleUtils.h"
 #include "llvm/Transforms/Obfuscation/compat/CallSite.h"
+#include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -35,9 +36,7 @@ struct FunctionWrapper : public ModulePass {
   bool flag;
   FunctionWrapper() : ModulePass(ID) { this->flag = true; }
   FunctionWrapper(bool flag) : ModulePass(ID) { this->flag = flag; }
-  StringRef getPassName() const override {
-    return "FunctionWrapper";
-  }
+  StringRef getPassName() const override { return "FunctionWrapper"; }
   bool runOnModule(Module &M) override {
     if (ProbRate > 100) {
       errs() << "FunctionWrapper application CallSite percentage "
@@ -80,8 +79,7 @@ struct FunctionWrapper : public ModulePass {
         return nullptr;
       }
       for (Argument &arg : tmp->args()) {
-        if (arg.hasStructRetAttr() ||
-            arg.hasSwiftSelfAttr()) {
+        if (arg.hasStructRetAttr() || arg.hasSwiftSelfAttr()) {
           return nullptr;
         }
         if (arg.hasByValAttr())
@@ -98,7 +96,8 @@ struct FunctionWrapper : public ModulePass {
         Function::Create(ft, GlobalValue::LinkageTypes::InternalLinkage,
                          "HikariFunctionWrapper", CS->getParent()->getModule());
     func->setCallingConv(CS->getCallingConv());
-    // Trolling was all fun and shit so old implementation forced this symbol to exist in all objects
+    // Trolling was all fun and shit so old implementation forced this symbol to
+    // exist in all objects
     appendToCompilerUsed(*func->getParent(), {func});
     BasicBlock *BB = BasicBlock::Create(func->getContext(), "", func);
     vector<Value *> params;
@@ -117,8 +116,7 @@ struct FunctionWrapper : public ModulePass {
             while (isa<AllocaInst>(InsertPoint))
               ++InsertPoint;
             AI = new AllocaInst(arg.getType(), 0, "", &*InsertPoint);
-          }
-          else
+          } else
             AI = new AllocaInst(arg.getType(), 0, "", BB);
           new StoreInst(&arg, AI, BB);
           LoadInst *LI = new LoadInst(AI->getAllocatedType(), AI, "", BB);
