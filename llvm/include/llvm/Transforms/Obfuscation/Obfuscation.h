@@ -6,6 +6,7 @@
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/NoFolder.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Support/Timer.h"
 #include "llvm/Transforms/Obfuscation/AntiClassDump.h"
 #include "llvm/Transforms/Obfuscation/AntiDebugging.h"
 #include "llvm/Transforms/Obfuscation/AntiHook.h"

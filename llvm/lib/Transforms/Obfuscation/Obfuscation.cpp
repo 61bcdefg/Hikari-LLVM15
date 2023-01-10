@@ -105,6 +105,11 @@ struct Obfuscation : public ModulePass {
     return "HikariObfuscationScheduler";
   }
   bool runOnModule(Module &M) override {
+    TimerGroup *tg =
+        new TimerGroup("Obfuscation Timer Group", "Obfuscation Timer Group");
+    Timer *timer = new Timer("Obfuscation Timer", "Obfuscation Timer", *tg);
+    timer->startTimer();
+
     ModulePass *MP = createAntiHookPass(EnableAntiHooking);
     MP->doInitialization(M);
     MP->runOnModule(M);
@@ -176,7 +181,13 @@ struct Obfuscation : public ModulePass {
     for (Function *F : toDelete)
       F->eraseFromParent();
 
+    timer->stopTimer();
     errs() << "Hikari Out\n";
+    errs() << "Spend Time: "
+           << format("%.10f", timer->getTotalTime().getWallTime()) << "s"
+           << "\n";
+    delete tg;
+    delete timer;
     return true;
   } // End runOnModule
 };
