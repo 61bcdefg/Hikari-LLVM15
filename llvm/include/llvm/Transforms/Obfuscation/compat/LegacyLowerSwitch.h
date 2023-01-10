@@ -43,7 +43,7 @@
 #include <vector>
 
 namespace llvm {
-FunctionPass *createLegacyLowerSwitchPass();
+static FunctionPass *createLegacyLowerSwitchPass();
 } // namespace llvm
 
 using namespace llvm;
@@ -125,7 +125,7 @@ struct CaseCmp {
 char LegacyLowerSwitch::ID = 0;
 
 // createLowerSwitchPass - Interface to this file...
-FunctionPass *llvm::createLegacyLowerSwitchPass() {
+static FunctionPass *llvm::createLegacyLowerSwitchPass() {
   return new LegacyLowerSwitch();
 }
 

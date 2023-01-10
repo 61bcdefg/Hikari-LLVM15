@@ -12,6 +12,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Obfuscation/Obfuscation.h"
 #include "llvm/Transforms/Obfuscation/SubstituteImpl.h"
+#include "llvm/Transforms/Obfuscation/compat/LegacyLowerSwitch.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 using namespace llvm;
 using namespace std;
@@ -42,6 +43,8 @@ struct IndirectBranch : public FunctionPass {
     vector<Constant *> BBs;
     unsigned long long i = 0;
     for (Function &F : M) {
+      // See https://github.com/NeHyci/Hikari-LLVM15/issues/32
+      createLegacyLowerSwitchPass()->runOnFunction(F);
       if (EncryptJumpTarget)
         encmap[&F] = ConstantInt::get(
             Type::getInt32Ty(M.getContext()),
