@@ -57,7 +57,7 @@ FunctionCallObfuscate的配置文件路径，参照Hikari原项目的wiki
 
 支持检测Objective-C运行时Hook。如果检测到就会调用AHCallBack函数(从PreCompiled IR获取)，如果不存在AHCallBack，就会退出程序。
 
-自动在函数中插入代码检测当前函数是否被Hook(通过LLVM MCJIT获取正确的函数前4条byte，运行时判断函数的前4条byte是不是正确的有没有被修改)，如果检测到就会调用AHCallBack函数(从PreCompiled IR获取)，如果不存在AHCallBack，就会退出程序。
+目前只支持arm64，在函数中插入代码检测当前函数是否被Hook，如果检测到就会调用AHCallBack函数(从PreCompiled IR获取)，如果不存在AHCallBack，就会退出程序。
 
 PreCompiled IR是指自定义的LLVM Bitcode文件，可以通过在存在回调函数的源文件的编译命令(C Flags)中加上`-emit-llvm`生成，然后放到指定位置即可
 
