@@ -15,7 +15,7 @@
 需要注意的是添加混淆参数的位置是在**Swift Compiler - Other Flags**中的**Other Swift Flags**，并且是在前面加-Xllvm，而不是-mllvm。
 关闭优化的地方在**Swift Compiler - Code Generation**中的**Optimization Level**，设置为 *No Optimization [-Onone]*
 
-每次编译前需要先Shift+Command+K(Clean Build Folder)，因为Swift并不会像OC一样检测到项目cflag的修改就会重新编译
+每次修改Other Swift Flags后编译前需要先Shift+Command+K(Clean Build Folder)，因为Swift并不会像OC一样检测到项目cflag的修改就会重新编译
 
 ###  混淆选项
 
@@ -123,17 +123,21 @@ AntiDebugging PreCompiled IR文件的路径
 
 生成分支条件的表达式复杂程度。默认为3
 
+-bcf_onlyjunkasm
+
+在虚假块中只插入花指令
+
 -bcf_junkasm
 
 在虚假块中插入花指令，干扰IDA对函数的识别。默认关闭
 
 -bcf_junkasm_minnum
 
-在虚假块中花指令的最小数量。默认为1
+在虚假块中花指令的最小数量。默认为2
 
 -bcf_junkasm_maxnum
 
-在虚假块中花指令的最大数量。默认为3
+在虚假块中花指令的最大数量。默认为4
 
 -bcf_createfunc
 
