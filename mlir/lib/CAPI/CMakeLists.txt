@@ -1,0 +1,8 @@
+add_subdirectory(Debug)
+add_subdirectory(Dialect)
+add_subdirectory(Conversion)
+add_subdirectory(ExecutionEngine)
+add_subdirectory(Interfaces)
+add_subdirectory(IR)
+add_subdirectory(Registration)
+add_subdirectory(Transforms)

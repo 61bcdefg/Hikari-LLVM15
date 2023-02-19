@@ -1,0 +1,16 @@
+{
+  "features": [
+    {
+      "name": "index-unit-output-path"
+    },
+    {
+      "name": "vfs-directory-remap"
+    },
+    {
+      "name": "allow-pcm-with-compiler-errors"
+    },
+    {
+      "name": "vfs-redirecting-with"
+    }
+  ]
+}
