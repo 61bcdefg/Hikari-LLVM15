@@ -121,7 +121,7 @@ ConstantEncryption在每个函数混淆的次数。默认为1
 
 -indibran-use-stack
 
-将跳转表地址和索引加载到栈中，再从栈中读取。默认关闭
+将跳转表的地址加载到栈中，再从栈中读取。默认关闭
 
 -indibran-enc-jump-target
 
