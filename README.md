@@ -37,15 +37,23 @@ PreCompiled IR是指自定义的LLVM Bitcode文件，可以通过在存在回调
 
 支持检测Objective-C运行时Hook。如果检测到就会调用AHCallBack函数(从PreCompiled IR获取)，如果不存在AHCallBack，就会退出程序。
 
-目前只支持arm64，在函数中插入代码检测当前函数是否被Hook，如果检测到就会调用AHCallBack函数(从PreCompiled IR获取)，如果不存在AHCallBack，就会退出程序。
+InlineHook检测目前只支持arm64，在函数中插入代码检测当前函数是否被Hook，如果检测到就会调用AHCallBack函数(从PreCompiled IR获取)，如果不存在AHCallBack，就会退出程序。
 
 -enable-antihook
 
 启用AntiHooking。默认关闭
 
+-ah_inline
+
+检测当前函数是否被inline hook。默认开启
+
+-ah_objcruntime
+
+检测当前函数是否被runtime hook。默认开启
+
 -ah_antirebind
 
-使生成的文件无法被fishhook重绑定符号
+使生成的文件无法被fishhook重绑定符号。默认关闭
 
 -adhexrirpath
 
