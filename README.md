@@ -107,6 +107,8 @@ AntiDebugging PreCompiled IR文件的路径
 
 修改自https://iosre.com/t/llvm-llvm/11132
 
+对能够处理的指令中使用的常量数字(ConstantInt)进行异或加密
+
 -enable-constenc
 
 启用ConstantEncryption。默认关闭
@@ -121,17 +123,17 @@ ConstantEncryption在每个函数混淆的次数。默认为1
 
 -constenc_togv
 
-将数字常量替换为全局变量，以对抗反编译器自动简化表达式。默认关闭
+将常量数字(ConstantInt)替换为全局变量，以及把每个二进制运算符(BinaryOperator)的运算结果替换为全局变量。默认关闭
 
 -constenc_subxor
 
-替换ConstantEncryption的XOR运算，使其变得更加复杂
+替换ConstantEncryption的异或运算，使其变得更加复杂
 
 #### IndirectBranch
 
 -indibran-use-stack
 
-将跳转表的地址加载到栈中，再从栈中读取。默认关闭
+将跳转表的地址在Entry Block加载到栈中，每个基本块再从栈中读取。默认关闭
 
 -indibran-enc-jump-target
 
