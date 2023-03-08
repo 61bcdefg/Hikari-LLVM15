@@ -123,7 +123,7 @@ ConstantEncryption在每个函数混淆的次数。默认为1
 
 -constenc_togv
 
-将常量数字(ConstantInt)替换为全局变量，以及把每个二进制运算符(BinaryOperator)的运算结果替换为全局变量。默认关闭
+将常量数字(ConstantInt)替换为全局变量，以及把类型为整数的二进制运算符(BinaryOperator)的运算结果替换为全局变量。默认关闭
 
 -constenc_subxor
 
