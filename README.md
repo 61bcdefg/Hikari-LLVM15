@@ -146,3 +146,8 @@ ConstantEncryption在每个函数混淆的次数。默认为1
 -   `adb` Anti Debugging
 -   `antihook` Anti Hooking
 -   `constenc` Constant Encryption
+
+## License
+
+See [https://github.com/HikariObfuscator/Hikari#license](https://github.com/HikariObfuscator/Hikari#license)
+
