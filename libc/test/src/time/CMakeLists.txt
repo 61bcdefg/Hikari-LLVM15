@@ -1,0 +1,149 @@
+add_libc_testsuite(libc_time_unittests)
+
+add_libc_unittest(
+  asctime
+  SUITE
+    libc_time_unittests
+  SRCS
+    asctime_test.cpp
+  HDRS
+    TmHelper.h
+    TmMatcher.h
+  CXX_STANDARD
+    20
+  DEPENDS
+    libc.src.time.asctime
+)
+
+add_libc_unittest(
+  asctime_r
+  SUITE
+    libc_time_unittests
+  SRCS
+    asctime_r_test.cpp
+  HDRS
+    TmHelper.h
+    TmMatcher.h
+  CXX_STANDARD
+    20
+  DEPENDS
+    libc.src.time.asctime_r
+)
+
+add_libc_unittest(
+  clock_gettime
+  SUITE
+    libc_time_unittests
+  SRCS
+  clock_gettime_test.cpp
+  DEPENDS
+    libc.src.time.clock_gettime
+)
+
+add_libc_unittest(
+  difftime
+  SUITE
+    libc_time_unittests
+  SRCS
+    difftime_test.cpp
+  DEPENDS
+    libc.src.time.difftime
+)
+
+add_libc_unittest(
+  gettimeofday
+  SUITE
+    libc_time_unittests
+  SRCS
+    gettimeofday_test.cpp
+  HDRS
+    TmHelper.h
+    TmMatcher.h
+  CXX_STANDARD
+    20
+  DEPENDS
+    libc.include.errno
+    libc.include.time
+    libc.src.time.gettimeofday
+    libc.src.time.nanosleep
+)
+
+add_libc_unittest(
+  gmtime
+  SUITE
+    libc_time_unittests
+  SRCS
+    gmtime_test.cpp
+  HDRS
+    TmMatcher.h
+  DEPENDS
+    libc.src.time.gmtime
+)
+
+add_libc_unittest(
+  gmtime_r
+  SUITE
+    libc_time_unittests
+  SRCS
+    gmtime_r_test.cpp
+  HDRS
+    TmMatcher.h
+  DEPENDS
+    libc.src.time.gmtime_r
+)
+
+add_libc_unittest(
+  mktime
+  SUITE
+    libc_time_unittests
+  SRCS
+    mktime_test.cpp
+  HDRS
+    TmHelper.h
+    TmMatcher.h
+  CXX_STANDARD
+    20
+  DEPENDS
+    libc.src.time.mktime
+)
+
+add_libc_unittest(
+  nanosleep
+  SUITE
+    libc_time_unittests
+  SRCS
+    nanosleep_test.cpp
+  HDRS
+    TmHelper.h
+    TmMatcher.h
+  CXX_STANDARD
+    20
+  DEPENDS
+    libc.include.errno
+    libc.include.time
+    libc.src.time.nanosleep
+)
+
+add_libc_unittest(
+  time_test
+  SUITE
+    libc_time_unittests
+  SRCS
+    time_test.cpp
+  DEPENDS
+    libc.include.errno
+    libc.include.time
+    libc.src.time.time
+)
+
+add_libc_unittest(
+  clock_test
+  SUITE
+    libc_time_unittests
+  SRCS
+    clock_test.cpp
+  DEPENDS
+    libc.include.errno
+    libc.include.time
+    libc.src.time.clock
+)

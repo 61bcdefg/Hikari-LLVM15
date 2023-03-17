@@ -1,0 +1,19 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("AMDGPUTests") {
+  deps = [
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target/AMDGPU:LLVMAMDGPUCodeGen",
+    "//llvm/lib/Target/AMDGPU/MCTargetDesc",
+    "//llvm/lib/Target/AMDGPU/TargetInfo",
+    "//llvm/lib/Target/AMDGPU/Utils",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ "//llvm/lib/Target/AMDGPU" ]
+  sources = [
+    "AMDGPUUnitTests.cpp",
+    "DwarfRegMappings.cpp",
+    "ExecMayBeModifiedBeforeAnyUse.cpp",
+  ]
+}

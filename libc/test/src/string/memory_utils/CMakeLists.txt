@@ -1,0 +1,17 @@
+add_libc_unittest(
+  utils_test
+  SUITE
+    libc_string_unittests
+  SRCS
+    op_tests.cpp
+    utils_test.cpp
+  COMPILE_OPTIONS
+    ${LIBC_COMPILE_OPTIONS_NATIVE}
+    -ffreestanding
+  DEPENDS
+    libc.src.__support.compiler_features
+    libc.src.__support.CPP.array
+    libc.src.__support.CPP.cstddef
+    libc.src.__support.CPP.span
+    libc.src.string.memory_utils.memory_utils
+)
