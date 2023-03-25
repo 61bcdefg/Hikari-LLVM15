@@ -141,6 +141,74 @@ ConstantEncryption在每个函数混淆的次数。默认为1
 
 ### Functions Annotations
 
+#### Supported Options
+##### C++/C functions
+For example, if you have multiple functions, but you only want to obfuscate the function int foo() with indibran-use-stack enabled, you can declare it like this:
+```
+int foo() __attribute((__annotate__(("indibran_use_stack"))));
+int foo() {
+   return 2;
+}
+```
+If you only want to obfuscate the function int foo() without using indibran-use-stack, you can declare it like this:
+```
+int foo() __attribute((__annotate__(("noindibran_use_stack"))));
+int foo() {
+   return 2;
+}
+```
+If you only wanted the BogusControlFlow of function int foo() to be obfuscated with a probability of 100, you can declare it like this:
+```
+int foo() __attribute((__annotate__(("bcf_prob=100"))));
+int foo() {
+   return 2;
+}
+```
+##### ObjC Methods
+For example you want to pass indibran-use-stack like the C++/C example:
+```
+extern void hikari_indibran_use_stack(void);
+@implementation foo2 : NSObject
++(void)foo{
+  hikari_indibran_use_stack();
+  NSLog(@"FOOOO2");
+}
+@end
+```
+If you only wanted the BogusControlFlow of function int foo() to be obfuscated with a probability of 100:
+```
+extern void hikari_bcf_prob(uint32_t);
+@implementation foo2 : NSObject
++(void)foo{
+  hikari_bcf_prob(100);
+  NSLog(@"FOOOO2");
+}
+@end
+```
+##### Options
+-   `ah_inline` 
+-   `ah_objcruntime`
+-   `ah_antirebind`  
+-   `bcf_prob`
+-   `bcf_loop`
+-   `bcf_cond_compl`   
+-   `bcf_onlyjunkasm`
+-   `bcf_junkasm`
+-   `bcf_junkasm_maxnum`
+-   `bcf_junkasm_minnum`
+-   `bcf_createfunc`
+-   `constenc_subxor`
+-   `constenc_togv`
+-   `constenc_prob`
+-   `constenc_times`
+-   `fw_prob`
+-   `indibran_use_stack`
+-   `indibran_enc_jump_target`
+-   `split_num`
+-   `strcry_prob`
+-   `sub_loop`
+-   `sub_prob`
+
 #### New Supported Flags
 
 -   `adb` Anti Debugging
