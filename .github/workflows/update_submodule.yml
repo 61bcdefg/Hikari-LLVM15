@@ -1,0 +1,95 @@
+name: Update submodule
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  updateSubmodule:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout llvm-swift-5.7.2-RELEASE
+        uses: actions/checkout@v2
+        with:
+          ref: 'llvm-swift-5.7.2-RELEASE'
+          submodules: 'recursive'
+
+      - name: Set Git config
+        run: |
+          git config user.name 'Submodule AutoUpdater'
+          git config user.email 'actions@users.noreply.github.com'
+
+      - name: Update submodule llvm-swift-5.7.2-RELEASE
+        run: |
+          git submodule update --remote
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Some files have been modified"
+            echo "HAS_CHANGES_swift572=1" >> $GITHUB_OUTPUT
+            git add .
+            git commit -m "update submodule"
+          fi
+
+      - name: Push changes llvm-swift-5.7.2-RELEASE
+        if: ${{ steps.merge.outputs.HAS_CHANGES_swift572 == '1' }}
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: llvm-swift-5.7.2-RELEASE
+
+      - name: Checkout llvm-15.0.2rel
+        uses: actions/checkout@v2
+        with:
+          ref: 'llvm-15.0.2rel'
+          submodules: 'recursive'
+
+      - name: Set Git config
+        run: |
+          git config user.name 'Submodule AutoUpdater'
+          git config user.email 'actions@users.noreply.github.com'
+
+      - name: Update submodule llvm-15.0.2rel
+        run: |
+          git submodule update --remote
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Some files have been modified"
+            echo "HAS_CHANGES_15=1" >> $GITHUB_OUTPUT
+            git add .
+            git commit -m "update submodule"
+          fi
+
+      - name: Push changes llvm-15.0.2rel
+        if: ${{ steps.merge.outputs.HAS_CHANGES_15 == '1' }}
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: llvm-15.0.2rel
+
+      - name: Checkout llvm-16.0.0rel
+        uses: actions/checkout@v2
+        with:
+          ref: 'llvm-16.0.0rel'
+          submodules: 'recursive'
+
+      - name: Set Git config
+        run: |
+          git config user.name 'Submodule AutoUpdater'
+          git config user.email 'actions@users.noreply.github.com'
+
+      - name: Update submodule llvm-16.0.0rel
+        run: |
+          git submodule update --remote
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Some files have been modified"
+            echo "HAS_CHANGES_16=1" >> $GITHUB_OUTPUT
+            git add .
+            git commit -m "update submodule"
+          fi
+
+      - name: Push changes llvm-16.0.0rel
+        if: ${{ steps.merge.outputs.HAS_CHANGES_16 == '1' }}
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: llvm-16.0.0rel
+
