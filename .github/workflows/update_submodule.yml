@@ -2,7 +2,7 @@ name: Update submodule
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '0 */4 * * *'
   workflow_dispatch:
 
 jobs:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout llvm-swift-5.7.2-RELEASE
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: 'llvm-swift-5.7.2-RELEASE'
           submodules: 'recursive'
@@ -39,7 +39,7 @@ jobs:
           branch: llvm-swift-5.7.2-RELEASE
 
       - name: Checkout llvm-15.0.2rel
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: 'llvm-15.0.2rel'
           submodules: 'recursive'
@@ -68,7 +68,7 @@ jobs:
           branch: llvm-15.0.2rel
 
       - name: Checkout llvm-16.0.0rel
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: 'llvm-16.0.0rel'
           submodules: 'recursive'
