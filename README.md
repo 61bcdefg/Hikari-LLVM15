@@ -1,221 +1,130 @@
-# Hikari-LLVM15
- A fork of HikariObfuscator [WIP]
- 
- ## 原项目链接
- [https://github.com/HikariObfuscator/Hikari](https://github.com/HikariObfuscator/Hikari)
+# Apple's fork of llvm-project
 
-## 使用
+This is Apple's fork of llvm-project.  For more information on Apple's
+branching scheme, please see
+[apple-docs/AppleBranchingScheme.md](https://github.com/apple/llvm-project/tree/apple/main/apple-docs/AppleBranchingScheme.md).
 
-下载后编译
+The LLVM project's main README follows.
 
-### Swift混淆支持
+# The LLVM Compiler Infrastructure
 
-编译[Swift Toolchain](https://github.com/61bcdefg/Hikari-Swift)的时间非常长，还可以使用[Hanabi](https://github.com/61bcdefg/Hanabi)。但是如果没有一些特殊需求，最好使用工具链形式
+This directory and its sub-directories contain the source code for LLVM,
+a toolkit for the construction of highly optimized compilers,
+optimizers, and run-time environments.
 
-需要注意的是添加混淆参数的位置是在**Swift Compiler - Other Flags**中的**Other Swift Flags**，并且是在前面加-Xllvm，而不是-mllvm。
-关闭优化的地方在**Swift Compiler - Code Generation**中的**Optimization Level**，设置为 *No Optimization [-Onone]*
+The README briefly describes how to get started with building LLVM.
+For more information on how to contribute to the LLVM project, please
+take a look at the
+[Contributing to LLVM](https://llvm.org/docs/Contributing.html) guide.
 
-每次修改Other Swift Flags后编译前需要先Shift+Command+K(Clean Build Folder)，因为Swift并不会像OC一样检测到项目cflag的修改就会重新编译
+## Getting Started with the LLVM System
 
-### PreCompiled IR
+Taken from [here](https://llvm.org/docs/GettingStarted.html).
 
-PreCompiled IR是指自定义的LLVM Bitcode文件，可以通过在存在回调函数的源文件的编译命令(C Flags)中加上`-emit-llvm`生成，然后放到指定位置即可
+### Overview
 
-###  混淆选项
+Welcome to the LLVM project!
 
-这里只会介绍修改的部分，原项目存在的功能请自行前往[https://github.com/HikariObfuscator/Hikari/wiki/](https://github.com/HikariObfuscator/Hikari/wiki/)查看
+The LLVM project has multiple components. The core of the project is
+itself called "LLVM". This contains all of the tools, libraries, and header
+files needed to process intermediate representations and convert them into
+object files. Tools include an assembler, disassembler, bitcode analyzer, and
+bitcode optimizer. It also contains basic regression tests.
 
-#### AntiClassDump
+C-like languages use the [Clang](http://clang.llvm.org/) frontend. This
+component compiles C, C++, Objective-C, and Objective-C++ code into LLVM bitcode
+-- and from there into object files, using LLVM.
 
--acd-rename-methodimp
+Other components include:
+the [libc++ C++ standard library](https://libcxx.llvm.org),
+the [LLD linker](https://lld.llvm.org), and more.
 
-重命名在IDA中显示的方法函数名称(修改为ACDMethodIMP)，不是修改方法名。默认关闭
+### Getting the Source Code and Building LLVM
 
-#### AntiHooking
+The LLVM Getting Started documentation may be out of date. The [Clang
+Getting Started](http://clang.llvm.org/get_started.html) page might have more
+accurate information.
 
-整体开启这个功能会使生成的二进制文件大小急剧膨胀，建议只在部分函数开启这个功能(toObfuscate)
+This is an example work-flow and configuration to get and build the LLVM source:
 
-支持检测Objective-C运行时Hook。如果检测到就会调用AHCallBack函数(从PreCompiled IR获取)，如果不存在AHCallBack，就会退出程序。
+1. Checkout LLVM (including related sub-projects like Clang):
 
-InlineHook检测目前只支持arm64，在函数中插入代码检测当前函数是否被Hook，如果检测到就会调用AHCallBack函数(从PreCompiled IR获取)，如果不存在AHCallBack，就会退出程序。
+     * ``git clone https://github.com/llvm/llvm-project.git``
 
--enable-antihook
+     * Or, on windows, ``git clone --config core.autocrlf=false
+    https://github.com/llvm/llvm-project.git``
 
-启用AntiHooking。默认关闭
+2. Configure and build LLVM and Clang:
 
--ah_inline
+     * ``cd llvm-project``
 
-检测当前函数是否被inline hook。默认开启
+     * ``cmake -S llvm -B build -G <generator> [options]``
 
--ah_objcruntime
+        Some common build system generators are:
 
-检测当前函数是否被runtime hook。默认开启
+        * ``Ninja`` --- for generating [Ninja](https://ninja-build.org)
+          build files. Most llvm developers use Ninja.
+        * ``Unix Makefiles`` --- for generating make-compatible parallel makefiles.
+        * ``Visual Studio`` --- for generating Visual Studio projects and
+          solutions.
+        * ``Xcode`` --- for generating Xcode projects.
 
--ah_antirebind
+        Some common options:
 
-使生成的文件无法被fishhook重绑定符号。默认关闭
+        * ``-DLLVM_ENABLE_PROJECTS='...'`` and ``-DLLVM_ENABLE_RUNTIMES='...'`` ---
+          semicolon-separated list of the LLVM sub-projects and runtimes you'd like to
+          additionally build. ``LLVM_ENABLE_PROJECTS`` can include any of: clang,
+          clang-tools-extra, cross-project-tests, flang, libc, libclc, lld, lldb,
+          mlir, openmp, polly, or pstl. ``LLVM_ENABLE_RUNTIMES`` can include any of
+          libcxx, libcxxabi, libunwind, compiler-rt, libc or openmp. Some runtime
+          projects can be specified either in ``LLVM_ENABLE_PROJECTS`` or in
+          ``LLVM_ENABLE_RUNTIMES``.
 
--adhexrirpath
+          For example, to build LLVM, Clang, libcxx, and libcxxabi, use
+          ``-DLLVM_ENABLE_PROJECTS="clang" -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi"``.
 
-AntiHooking PreCompiled IR文件的路径
+        * ``-DCMAKE_INSTALL_PREFIX=directory`` --- Specify for *directory* the full
+          path name of where you want the LLVM tools and libraries to be installed
+          (default ``/usr/local``). Be careful if you install runtime libraries: if
+          your system uses those provided by LLVM (like libc++ or libc++abi), you
+          must not overwrite your system's copy of those libraries, since that
+          could render your system unusable. In general, using something like
+          ``/usr`` is not advised, but ``/usr/local`` is fine.
 
-#### AntiDebugging
+        * ``-DCMAKE_BUILD_TYPE=type`` --- Valid options for *type* are Debug,
+          Release, RelWithDebInfo, and MinSizeRel. Default is Debug.
 
-自动在函数中进行反调试，如果有InitADB和ADBCallBack函数(从PreCompiled IR获取)，就会调用ADBInit函数，如果不存在InitADB和ADBCallBack函数并且是Apple ARM64平台，就会自动在void返回类型的函数中插入内联汇编反调试，否则不做处理。
+        * ``-DLLVM_ENABLE_ASSERTIONS=On`` --- Compile with assertion checks enabled
+          (default is Yes for Debug builds, No for all other build types).
 
--enable-adb
+      * ``cmake --build build [-- [options] <target>]`` or your build system specified above
+        directly.
 
-启用AntiDebugging。默认关闭
+        * The default target (i.e. ``ninja`` or ``make``) will build all of LLVM.
 
--adb_prob
+        * The ``check-all`` target (i.e. ``ninja check-all``) will run the
+          regression tests to ensure everything is in working order.
 
-每个函数被添加反调试的概率。默认为40
+        * CMake will generate targets for each tool and library, and most
+          LLVM sub-projects generate their own ``check-<project>`` target.
 
--adbextirpath
+        * Running a serial build will be **slow**. To improve speed, try running a
+          parallel build. That's done by default in Ninja; for ``make``, use the option
+          ``-j NNN``, where ``NNN`` is the number of parallel jobs to run.
+          In most cases, you get the best performance if you specify the number of CPU threads you have.
+          On some Unix systems, you can specify this with ``-j$(nproc)``.
 
-AntiDebugging PreCompiled IR文件的路径
+      * For more information see [CMake](https://llvm.org/docs/CMake.html).
 
-#### StringEncryption
+Consult the
+[Getting Started with LLVM](https://llvm.org/docs/GettingStarted.html#getting-started-with-llvm)
+page for detailed information on configuring and compiling LLVM. You can visit
+[Directory Layout](https://llvm.org/docs/GettingStarted.html#directory-layout)
+to learn about the layout of the source code tree.
 
--strcry_prob
+## Getting in touch
 
-每个字符串中每个byte被加密的概率。默认为100。这个功能是为了给一些需要的加密强度不高，但是重视体积的人。
+Join [LLVM Discourse forums](https://discourse.llvm.org/), [discord chat](https://discord.gg/xS7Z362) or #llvm IRC channel on [OFTC](https://oftc.net/).
 
-#### BogusControlFlow
-
--bcf_onlyjunkasm
-
-在虚假块中只插入花指令
-
--bcf_junkasm
-
-在虚假块中插入花指令，干扰IDA对函数的识别。默认关闭
-
--bcf_junkasm_minnum
-
-在虚假块中花指令的最小数量。默认为2
-
--bcf_junkasm_maxnum
-
-在虚假块中花指令的最大数量。默认为4
-
--bcf_createfunc
-
-使用函数封装不透明谓词。默认关闭
-
-#### ConstantEncryption
-
-修改自https://iosre.com/t/llvm-llvm/11132
-
-对能够处理的指令中使用的常量数字(ConstantInt)进行异或加密
-
--enable-constenc
-
-启用ConstantEncryption。默认关闭
-
--constenc_times
-
-ConstantEncryption在每个函数混淆的次数。默认为1
-
--constenc_prob
-
-每个指令被ConstantEncryption混淆的概率。默认为50
-
--constenc_togv
-
-将常量数字(ConstantInt)替换为全局变量，以及把类型为整数的二进制运算符(BinaryOperator)的运算结果替换为全局变量。默认关闭
-
--constenc_subxor
-
-替换ConstantEncryption的异或运算，使其变得更加复杂
-
-#### IndirectBranch
-
--indibran-use-stack
-
-将跳转表的地址在Entry Block加载到栈中，每个基本块再从栈中读取。默认关闭
-
--indibran-enc-jump-target
-
-加密跳转表和索引。默认关闭
-
-### Functions Annotations
-
-#### Supported Options
-##### C++/C functions
-For example, if you have multiple functions, but you only want to obfuscate the function int foo() with indibran-use-stack enabled, you can declare it like this:
-```
-int foo() __attribute((__annotate__(("indibran_use_stack"))));
-int foo() {
-   return 2;
-}
-```
-If you only want to obfuscate the function int foo() without using indibran-use-stack, you can declare it like this:
-```
-int foo() __attribute((__annotate__(("noindibran_use_stack"))));
-int foo() {
-   return 2;
-}
-```
-If you only wanted the BogusControlFlow of function int foo() to be obfuscated with a probability of 100, you can declare it like this:
-```
-int foo() __attribute((__annotate__(("bcf_prob=100"))));
-int foo() {
-   return 2;
-}
-```
-##### ObjC Methods
-For example you want to pass indibran-use-stack like the C++/C example:
-```
-extern void hikari_indibran_use_stack(void);
-@implementation foo2 : NSObject
-+(void)foo{
-  hikari_indibran_use_stack();
-  NSLog(@"FOOOO2");
-}
-@end
-```
-If you only wanted the BogusControlFlow of function int foo() to be obfuscated with a probability of 100:
-```
-extern void hikari_bcf_prob(uint32_t);
-@implementation foo2 : NSObject
-+(void)foo{
-  hikari_bcf_prob(100);
-  NSLog(@"FOOOO2");
-}
-@end
-```
-##### Options
--   `ah_inline` 
--   `ah_objcruntime`
--   `ah_antirebind`  
--   `bcf_prob`
--   `bcf_loop`
--   `bcf_cond_compl`   
--   `bcf_onlyjunkasm`
--   `bcf_junkasm`
--   `bcf_junkasm_maxnum`
--   `bcf_junkasm_minnum`
--   `bcf_createfunc`
--   `constenc_subxor`
--   `constenc_togv`
--   `constenc_prob`
--   `constenc_times`
--   `fw_prob`
--   `indibran_use_stack`
--   `indibran_enc_jump_target`
--   `split_num`
--   `strcry_prob`
--   `sub_loop`
--   `sub_prob`
-
-#### New Supported Flags
-
--   `adb` Anti Debugging
--   `antihook` Anti Hooking
--   `constenc` Constant Encryption
-
-## License
-
-See [https://github.com/HikariObfuscator/Hikari#license](https://github.com/HikariObfuscator/Hikari#license)
-
+The LLVM project has adopted a [code of conduct](https://llvm.org/docs/CodeOfConduct.html) for
+participants to all modes of communication within the project.

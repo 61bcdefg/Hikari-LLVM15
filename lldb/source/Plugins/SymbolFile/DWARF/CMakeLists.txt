@@ -1,0 +1,72 @@
+lldb_tablegen(SymbolFileDWARFProperties.inc -gen-lldb-property-defs
+  SOURCE SymbolFileDWARFProperties.td
+  TARGET LLDBPluginSymbolFileDWARFPropertiesGen)
+
+lldb_tablegen(SymbolFileDWARFPropertiesEnum.inc -gen-lldb-property-enum-defs
+  SOURCE SymbolFileDWARFProperties.td
+  TARGET LLDBPluginSymbolFileDWARFPropertiesEnumGen)
+
+set(SWIFT_SOURCES DWARFASTParserSwift.cpp)
+set(LLVM_OPTIONAL_SOURCES ${SWIFT_SOURCES})
+if (NOT LLDB_ENABLE_SWIFT_SUPPORT)
+  unset(SWIFT_SOURCES)
+endif()
+
+add_lldb_library(lldbPluginSymbolFileDWARF PLUGIN
+  AppleDWARFIndex.cpp
+  DebugNamesDWARFIndex.cpp
+  DIERef.cpp
+  DWARFAbbreviationDeclaration.cpp
+  DWARFASTParserClang.cpp
+  DWARFAttribute.cpp
+  DWARFBaseDIE.cpp
+  DWARFCompileUnit.cpp
+  DWARFContext.cpp
+  DWARFDataExtractor.cpp
+  DWARFDebugAbbrev.cpp
+  DWARFDebugAranges.cpp
+  DWARFDebugArangeSet.cpp
+  DWARFDebugInfo.cpp
+  DWARFDebugInfoEntry.cpp
+  DWARFDebugMacro.cpp
+  DWARFDebugRanges.cpp
+  DWARFDeclContext.cpp
+  DWARFDefines.cpp
+  DWARFDIE.cpp
+  DWARFFormValue.cpp
+  DWARFIndex.cpp
+  DWARFTypeUnit.cpp
+  DWARFUnit.cpp
+  HashedNameToDIE.cpp
+  LogChannelDWARF.cpp
+  ManualDWARFIndex.cpp
+  NameToDIE.cpp
+  SymbolFileDWARF.cpp
+  SymbolFileDWARFDwo.cpp
+  SymbolFileDWARFDebugMap.cpp
+  UniqueDWARFASTType.cpp
+  ${SWIFT_SOURCES}
+
+  LINK_LIBS
+    lldbCore
+    lldbExpression
+    lldbHost
+    lldbInterpreter
+    lldbSymbol
+    lldbTarget
+    lldbUtility
+    lldbPluginObjCLanguage
+    lldbPluginCPlusPlusLanguage
+    lldbPluginExpressionParserClang
+    lldbPluginTypeSystemClang
+  CLANG_LIBS
+    clangAST
+    clangBasic
+  LINK_COMPONENTS
+    DebugInfoDWARF
+    Support
+  )
+
+add_dependencies(lldbPluginSymbolFileDWARF
+  LLDBPluginSymbolFileDWARFPropertiesGen
+  LLDBPluginSymbolFileDWARFPropertiesEnumGen)
