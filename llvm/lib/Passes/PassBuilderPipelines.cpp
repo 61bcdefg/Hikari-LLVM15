@@ -128,6 +128,7 @@
 #include "llvm/Transforms/Vectorize/LoopVectorize.h"
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
+#include "llvm/Transforms/Obfuscation/Obfuscation.h"
 
 using namespace llvm;
 
@@ -1290,6 +1291,7 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
          "Must request optimizations for the default pipeline!");
 
   ModulePassManager MPM;
+  MPM.addPass(ObfuscationPass());
 
   // Convert @llvm.global.annotations to !annotation metadata.
   MPM.addPass(Annotation2MetadataPass());
@@ -1331,6 +1333,7 @@ PassBuilder::buildThinLTOPreLinkDefaultPipeline(OptimizationLevel Level) {
          "Must request optimizations for the default pipeline!");
 
   ModulePassManager MPM;
+  MPM.addPass(ObfuscationPass());
 
   // Convert @llvm.global.annotations to !annotation metadata.
   MPM.addPass(Annotation2MetadataPass());
@@ -1390,6 +1393,7 @@ PassBuilder::buildThinLTOPreLinkDefaultPipeline(OptimizationLevel Level) {
 ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
     OptimizationLevel Level, const ModuleSummaryIndex *ImportSummary) {
   ModulePassManager MPM;
+  MPM.addPass(ObfuscationPass());
 
   // Convert @llvm.global.annotations to !annotation metadata.
   MPM.addPass(Annotation2MetadataPass());
@@ -1746,6 +1750,7 @@ ModulePassManager PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
          "buildO0DefaultPipeline should only be used with O0");
 
   ModulePassManager MPM;
+  MPM.addPass(ObfuscationPass());
 
   // Perform pseudo probe instrumentation in O0 mode. This is for the
   // consistency between different build modes. For example, a LTO build can be
