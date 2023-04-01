@@ -38,6 +38,35 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: llvm-swift-5.7.2-RELEASE
 
+      - name: Checkout llvm-swift-5.8-RELEASE
+        uses: actions/checkout@v3
+        with:
+          ref: 'llvm-swift-5.8-RELEASE'
+          submodules: 'recursive'
+
+      - name: Set Git config
+        run: |
+          git config user.name 'Submodule AutoUpdater'
+          git config user.email 'actions@users.noreply.github.com'
+
+      - name: Update submodule llvm-swift-5.8-RELEASE
+        id: swift58
+        run: |
+          git submodule update --remote
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Some files have been modified"
+            echo "HAS_CHANGES=1" >> $GITHUB_OUTPUT
+            git add .
+            git commit -m "update submodule"
+          fi
+
+      - name: Push changes llvm-swift-5.8-RELEASE
+        if: ${{ steps.swift58.outputs.HAS_CHANGES == '1' }}
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: llvm-swift-5.8-RELEASE
+
       - name: Checkout llvm-15.0.2rel
         uses: actions/checkout@v3
         with:
