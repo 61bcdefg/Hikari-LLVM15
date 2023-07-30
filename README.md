@@ -21,6 +21,48 @@
 
 PreCompiled IR是指自定义的LLVM Bitcode文件，可以通过在存在回调函数的源文件的编译命令(C Flags)中加上`-emit-llvm`生成，然后放到指定位置即可
 
+###  一些修改
+
+#### AntiClassDump
+
+arm64e支持
+
+#### BogusControlFlow
+
+跳过presplit coroutine以支持swift
+
+修复了消失的不透明谓词
+
+#### Flattening
+
+跳过presplit coroutine以支持swift
+
+间接修改全局变量，可以使部分脚本无法正常反混淆（如d810）
+
+#### FunctionCallObfuscate
+
+将只会在启用混淆的地方混淆Objc Call，而不是整个模块
+
+#### FunctionWrapper
+
+跳过一些目前无法处理的函数以支持swift
+
+支持混淆包含byval的函数（可能？）
+
+#### SplitBasicBlocks
+
+修复了可能的堆污染错误
+
+#### StringEncryption
+
+支持混淆在结构体和数组中的字符串
+
+arm64e支持
+
+#### Substitution
+
+添加更多pattern
+
 ###  混淆选项
 
 这里只会介绍修改的部分，原项目存在的功能请自行前往[https://github.com/HikariObfuscator/Hikari/wiki/](https://github.com/HikariObfuscator/Hikari/wiki/)查看
