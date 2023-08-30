@@ -29,7 +29,9 @@ arm64e支持
 
 #### BogusControlFlow
 
-跳过presplit coroutine以支持swift
+跳过包含MustTailCall的基本块以避免错误
+
+跳过presplit coroutine和包含CoroBeginInst的基本块以支持swift、
 
 修复了消失的不透明谓词
 
@@ -37,7 +39,7 @@ arm64e支持
 
 跳过presplit coroutine以支持swift
 
-间接修改全局变量，可以使部分脚本无法正常反混淆（如d810）
+间接修改状态变量，可以使部分脚本无法正常反混淆（如d810）
 
 #### FunctionCallObfuscate
 
@@ -62,6 +64,12 @@ arm64e支持
 #### Substitution
 
 添加更多pattern
+
+#### IndirectBranch
+
+运行后会重排列基本块的顺序
+
+默认启用基于栈的跳转，可以使静态分析更困难
 
 ###  混淆选项
 
@@ -175,7 +183,7 @@ ConstantEncryption在每个函数混淆的次数。默认为1
 
 -indibran-use-stack
 
-将跳转表的地址在Entry Block加载到栈中，每个基本块再从栈中读取。默认关闭
+将跳转表的地址在Entry Block加载到栈中，每个基本块再从栈中读取。默认开启
 
 -indibran-enc-jump-target
 
