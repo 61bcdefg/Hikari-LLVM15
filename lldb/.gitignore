@@ -1,0 +1,69 @@
+#==============================================================================#
+# The file specifies intentionally untracked files that git should ignore.
+# See: http://www.kernel.org/pub/software/scm/git/docs/gitignore.html
+#
+# This file is intentionally different from the output of `git svn show-ignore`,
+# as most of those are useless.
+#==============================================================================#
+
+#==============================================================================#
+# File extensions to be ignored anywhere in the tree.
+#==============================================================================#
+# Temp files created by most text editors.
+*~
+# Merge files created by git.
+*.orig
+# Byte compiled python modules.
+*.pyc
+*.pyproj
+# pyenv settings
+.python-version
+*.sln
+*.suo
+# vim swap files
+.*.swp
+.sw?
+# OS X specific files.
+.DS_store
+DerivedData/
+*.noindex
+
+# Remote build configuration files.
+.remote-build.conf
+
+build/
+pyproj/
+llvm-build/
+ninja/
+*xcuserdata
+*.xcscmblueprint
+test/20*
+source/LLDBWrapPython.cpp
+.DS_Store
+__pycache__/
+
+clang-module-cache
+
+# Skip ctags-style tags files
+tags
+
+# We should ignore Xcode-style embedding of llvm/ at lldb root dir.
+# Do not add trailing '/'s, they skip symlinks.
+/ninja
+/llvm
+/DerivedData
+/cmark
+/compiler-rt
+PrebuiltSwiftlang
+intermediates
+
+# ctags files
+tags
+TAGS
+
+/clang
+/swift
+
+# Ignore test trace directories.
+20??-??-??-??_??_??/
+
