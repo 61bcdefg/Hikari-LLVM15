@@ -10,7 +10,9 @@
 
 ### Swift混淆支持
 
-编译[Swift Toolchain](https://github.com/61bcdefg/Hikari-Swift)的时间非常长，还可以使用[Hanabi](https://github.com/61bcdefg/Hanabi)。但是如果没有一些特殊需求，最好使用工具链形式
+由于Xcode的LLVM相比原版LLVM有大量闭源改动，Hanabi在Xcode 15起已无法编译Swift。
+
+使用[Swift Toolchain](https://github.com/61bcdefg/Hikari-Swift)。
 
 需要注意的是添加混淆参数的位置是在**Swift Compiler - Other Flags**中的**Other Swift Flags**，并且是在前面加-Xllvm，而不是-mllvm。
 关闭优化的地方在**Swift Compiler - Code Generation**中的**Optimization Level**，设置为 *No Optimization [-Onone]*
