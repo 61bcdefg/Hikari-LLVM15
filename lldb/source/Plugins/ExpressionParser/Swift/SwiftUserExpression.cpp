@@ -10,19 +10,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "swift/AST/ASTContext.h"
-#include "swift/AST/GenericEnvironment.h"
-#include "swift/Demangling/Demangler.h"
-#include <stdio.h>
-#if HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-
 #include "SwiftASTManipulator.h"
 #include "SwiftExpressionParser.h"
 #include "SwiftExpressionSourceCode.h"
+#include "SwiftPersistentExpressionState.h"
 #include "SwiftREPLMaterializer.h"
-#include "SwiftASTManipulator.h"
+
+#include "swift/AST/ASTContext.h"
+#include "swift/AST/GenericEnvironment.h"
+#include "swift/Demangling/Demangler.h"
+#if HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
 
 #include "Plugins/LanguageRuntime/Swift/SwiftLanguageRuntime.h"
 #include "lldb/Core/Module.h"
@@ -46,8 +45,6 @@
 #include "swift/Demangling/Demangler.h"
 #include "swift/AST/GenericEnvironment.h"
 
-
-#include <cstdlib>
 #include <map>
 #include <string>
 
@@ -118,10 +115,7 @@ struct SwiftSelfInfo {
 
   /// Adjusted type of `self`. If we're in a static method, this is an instance
   /// type.
-  CompilerType type = {};
-
-  /// Underlying Swift type for the adjusted type of `self`.
-  swift::TypeBase *swift_type = nullptr;
+  CompilerType type;
 
   /// Type flags for the adjusted type of `self`.
   Flags type_flags = {};
@@ -146,7 +140,7 @@ findSwiftSelf(StackFrame &frame, lldb::VariableSP self_var_sp) {
 
   // 3) If (1) and (2) fail, give up.
   if (!info.type.IsValid())
-    return llvm::None;
+    return {};
 
   // 4) If `self` is a metatype, get its instance type.
   if (Flags(info.type.GetTypeInfo())
@@ -155,20 +149,15 @@ findSwiftSelf(StackFrame &frame, lldb::VariableSP self_var_sp) {
     info.is_metatype = true;
   }
 
-  info.swift_type = GetSwiftType(info.type).getPointer();
-  if (auto *dyn_self =
-          llvm::dyn_cast_or_null<swift::DynamicSelfType>(info.swift_type))
-    info.swift_type = dyn_self->getSelfType().getPointer();
-
-  // 5) If the adjusted type isn't equal to the type according to the runtime,
-  // switch it to the latter type.
-  if (info.swift_type && (info.swift_type != info.type.GetOpaqueQualType()))
-    info.type = ToCompilerType(info.swift_type);
+  auto ts = info.type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwift>();
+  if (!ts)
+    return {};
+  info.type = ts->GetStaticSelfType(info.type.GetOpaqueQualType());
 
   info.type_flags = Flags(info.type.GetTypeInfo());
 
   if (!info.type.IsValid())
-    return llvm::None;
+    return {};
   return info;
 }
 
@@ -258,12 +247,18 @@ void SwiftUserExpression::ScanContext(ExecutionContext &exe_ctx, Status &err) {
     m_is_class |= info.type_flags.Test(lldb::eTypeIsClass);
 
   // Handle weak self.
-  auto *ref_type =
-      llvm::dyn_cast_or_null<swift::ReferenceStorageType>(info.swift_type);
-  if (ref_type && ref_type->getOwnership() == swift::ReferenceOwnership::Weak) {
-    m_is_class = true;
-    m_is_weak_self = true;
-  }
+
+  auto ts = info.type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwift>();
+  if (!ts)
+    return;
+
+  if (auto ownership_kind = ts->GetNonTriviallyManagedReferenceKind(
+          info.type.GetOpaqueQualType()))
+    if (*ownership_kind ==
+        SwiftASTContext::NonTriviallyManagedReferenceKind::eWeak) {
+      m_is_class = true;
+      m_is_weak_self = true;
+    }
 
   m_needs_object_ptr = !m_in_static_method;
 
@@ -335,10 +330,19 @@ static bool AddVariableInfo(
     return true;
   }
 
+  // Report a fatal error if self can't be reconstructed as a Swift AST type.
+  if (is_self && !GetSwiftType(target_type))
+    return false;
+
+  auto ts = target_type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwift>();
+  if (!ts)
+    return false;
+
   // If we couldn't fully realize the type, then we aren't going
   // to get very far making a local out of it, so discard it here.
   Log *log = GetLog(LLDBLog::Types | LLDBLog::Expressions);
-  if (!is_unbound_pack && !SwiftASTContext::IsFullyRealized(target_type)) {
+  if (!is_unbound_pack && ts->IsMeaninglessWithoutDynamicResolution(
+                              target_type.GetOpaqueQualType())) {
     if (log)
       log->Printf("Discarding local %s because we couldn't fully realize it, "
                   "our best attempt was: %s.",
@@ -499,21 +503,21 @@ static bool CanEvaluateExpressionWithoutBindingGenericParams(
   if (!self_type)
     return false;
 
-  auto *ts = self_type.GetTypeSystem()
-                 .dyn_cast_or_null<TypeSystemSwift>()
-                 ->GetSwiftASTContext();
-
+  auto ts = self_type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwift>();
   if (!ts)
     return false;
 
-  auto swift_type = ts->GetSwiftType(self_type);
+  auto *swift_ast_ctx = ts->GetSwiftASTContext();
+  if (!swift_ast_ctx)
+    return false;
+
+  auto swift_type = swift_ast_ctx->GetSwiftType(self_type);
   if (!swift_type)
     return false;
 
   auto *decl = swift_type->getAnyGeneric();
   if (!decl)
     return false;
-
 
   auto *env = decl->getGenericEnvironment();
   if (!env)
@@ -712,8 +716,8 @@ bool SwiftUserExpression::Parse(DiagnosticManager &diagnostic_manager,
   if (status.Fail() || !module_decl)
     return error("could not load Swift Standard Library", status.AsCString());
 
-  persistent_state->AddHandLoadedModule(ConstString("Swift"),
-                                        swift::ImportedModule(module_decl));
+  m_swift_ast_ctx->AddHandLoadedModule(ConstString("Swift"),
+                                       swift::ImportedModule(module_decl));
   m_result_delegate.RegisterPersistentState(persistent_state);
   m_error_delegate.RegisterPersistentState(persistent_state);
  

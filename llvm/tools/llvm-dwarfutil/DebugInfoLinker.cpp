@@ -305,7 +305,6 @@ Error linkDebugInfo(object::ObjectFile &File, const Options &Options,
   DebugInfoLinker.setUpdate(!Options.DoGarbageCollection);
 
   std::vector<std::unique_ptr<DWARFFile>> ObjectsForLinking(1);
-  std::vector<std::unique_ptr<AddressesMap>> AddresssMapForLinking(1);
   std::vector<std::string> EmptyWarnings;
 
   // Unknown debug sections would be removed. Display warning
@@ -319,11 +318,9 @@ Error linkDebugInfo(object::ObjectFile &File, const Options &Options,
   }
 
   // Add object files to the DWARFLinker.
-  AddresssMapForLinking[0] =
-      std::make_unique<ObjFileAddressMap>(*Context, Options, File);
-
   ObjectsForLinking[0] = std::make_unique<DWARFFile>(
-      File.getFileName(), &*Context, AddresssMapForLinking[0].get(),
+      File.getFileName(), DWARFContext::create(File),
+      std::make_unique<ObjFileAddressMap>(*Context, Options, File),
       EmptyWarnings);
 
   for (size_t I = 0; I < ObjectsForLinking.size(); I++)

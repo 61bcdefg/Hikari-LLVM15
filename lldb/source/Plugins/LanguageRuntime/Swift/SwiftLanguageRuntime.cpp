@@ -15,6 +15,7 @@
 #include "SwiftLanguageRuntimeImpl.h"
 #include "SwiftMetadataCache.h"
 
+#include "Plugins/ExpressionParser/Swift/SwiftPersistentExpressionState.h"
 #include "Plugins/Process/Utility/RegisterContext_x86.h"
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "Utility/ARM64_DWARF_Registers.h"
@@ -266,8 +267,7 @@ public:
     return addr;
   }
 
-  SwiftLanguageRuntime::MetadataPromiseSP
-  GetMetadataPromise(lldb::addr_t addr, ValueObject &for_object) {
+  CompilerType GetTypeFromMetadata(TypeSystemSwift &tss, Address addr) {
     STUB_LOG();
     return {};
   }
@@ -518,12 +518,13 @@ void SwiftLanguageRuntimeImpl::SetupReflection() {
       objc_interop ? "with Objective-C interopability" : "Swift only";
 
   auto &triple = exe_module->GetArchitecture().GetTriple();
-  if (triple.isArch64Bit()) {
+  auto byte_size = m_process.GetAddressByteSize();
+  if (byte_size == 8) {
     LLDB_LOGF(log, "Initializing a 64-bit reflection context (%s) for \"%s\"",
               triple.str().c_str(), objc_interop_msg);
     m_reflection_ctx = ReflectionContextInterface::CreateReflectionContext64(
         this->GetMemoryReader(), objc_interop, GetSwiftMetadataCache());
-  } else if (triple.isArch32Bit()) {
+  } else if (byte_size == 4) {
     LLDB_LOGF(log,
               "Initializing a 32-bit reflection context (%s) for \"%s\"",
               triple.str().c_str(), objc_interop_msg);
@@ -1051,6 +1052,10 @@ SwiftLanguageRuntimeImpl::RunObjectDescriptionExpr(ValueObject &object,
     frame_sp 
         = m_process.GetThreadList().GetSelectedThread()
             ->GetSelectedFrame(DoNoSelectMostRelevantFrame);
+  if (!frame_sp) {
+    log->Printf("no execution context to run expression in");
+    return false;
+  }
   auto eval_result = m_process.GetTarget().EvaluateExpression(
       expr_string,
       frame_sp.get(),
@@ -1506,7 +1511,7 @@ void SwiftLanguageRuntime::RegisterGlobalError(Target &target, ConstString name,
       if (!persistent_state)
         return;
 
-      persistent_state->RegisterSwiftPersistentDecl(var_decl);
+      persistent_state->RegisterSwiftPersistentDecl({ast_context, var_decl});
 
       ConstString mangled_name;
 
@@ -2376,10 +2381,9 @@ lldb::addr_t SwiftLanguageRuntime::FixupAddress(lldb::addr_t addr,
   FORWARD(FixupAddress, addr, type, error);
 }
 
-SwiftLanguageRuntime::MetadataPromiseSP
-SwiftLanguageRuntime::GetMetadataPromise(lldb::addr_t addr,
-                                         ValueObject &for_object) {
-  FORWARD(GetMetadataPromise, addr, for_object);
+CompilerType SwiftLanguageRuntime::GetTypeFromMetadata(TypeSystemSwift &tss,
+                                                       Address addr) {
+  FORWARD(GetTypeFromMetadata, tss, addr);
 }
 
 bool SwiftLanguageRuntime::IsStoredInlineInBuffer(CompilerType type) {

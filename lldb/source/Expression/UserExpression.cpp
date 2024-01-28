@@ -44,6 +44,7 @@
 
 #ifdef LLDB_ENABLE_SWIFT
 #include "Plugins/TypeSystem/Swift/SwiftASTContext.h"
+#include "Plugins/ExpressionParser/Swift/SwiftPersistentExpressionState.h"
 #endif //LLDB_ENABLE_SWIFT
 
 using namespace lldb_private;
@@ -260,7 +261,7 @@ UserExpression::Evaluate(ExecutionContext &exe_ctx,
       target->GetUserExpressionForLanguage(expr, full_prefix, language,
                                            desired_type, options, ctx_obj,
                                            error));
-  if (error.Fail()) {
+  if (error.Fail() || !user_expression_sp) {
     LLDB_LOG(log, "== [UserExpression::Evaluate] Getting expression: {0} ==",
              error.AsCString());
     return lldb::eExpressionSetupError;

@@ -66,22 +66,6 @@ class TestSwiftDeploymentTarget(TestBase):
             self, "break here", lldb.SBFileSpec("main.swift")
         )
         self.expect("expression f", substrs=["i = 23"])
-
-        found_no_ast = False
-        found_triple = False
-        import io
-
-        logfile = io.open(log, "r", encoding="utf-8")
-        for line in logfile:
-            if (
-                'SwiftASTContextForModule("a.out")::DeserializeAllCompilerFlags() -- Found 0 AST file data entries.'
-                in line
-            ):
-                found_no_ast = True
-            if (
-                'SwiftASTContextForModule("a.out")::SetTriple(' in line
-                and "apple-macosx11.0" in line
-            ):
-                found_triple = True
-        self.assertTrue(found_no_ast)
-        self.assertTrue(found_triple)
+        self.filecheck('platform shell cat ""%s"' % log, __file__)
+#       CHECK: SwiftASTContextForExpressions::SetTriple({{.*}}apple-macosx11.0.0
+#       CHECK:  SwiftASTContextForExpressions::RegisterSectionModules("a.out") retrieved 0 AST Data blobs

@@ -37,7 +37,8 @@ class ClangExternalASTSourceCallbacks;
 class ClangNameImporter;
 class SwiftASTContext;
 class SwiftASTContextForExpressions;
-
+class SwiftPersistentExpressionState;
+  
 /// A Swift TypeSystem that does not own a swift::ASTContext.
 class TypeSystemSwiftTypeRef : public TypeSystemSwift {
   /// LLVM RTTI support.
@@ -270,6 +271,11 @@ public:
   CompilerType GetErrorType() override;
   CompilerType GetReferentType(lldb::opaque_compiler_type_t type) override;
   CompilerType GetInstanceType(lldb::opaque_compiler_type_t type) override;
+  CompilerType GetStaticSelfType(lldb::opaque_compiler_type_t type) override;
+  static swift::Demangle::NodePointer
+  GetStaticSelfType(swift::Demangle::Demangler &dem,
+                    swift::Demangle::NodePointer node);
+
   /// Wrap type inside a SILPackType.
   CompilerType CreateSILPackType(CompilerType type, bool indirect);
   struct PackTypeInfo {
@@ -496,7 +502,8 @@ protected:
   ///        initialized. It should be replaced by something more
   ///        deterministic.
   /// Perform all the implicit imports for the current frame.
-  mutable std::unique_ptr<SymbolContext> m_initial_symbol_context;
+  mutable std::unique_ptr<SymbolContext> m_initial_symbol_context_up;
+  std::unique_ptr<SwiftPersistentExpressionState> m_persistent_state_up;
 };
 
 swift::DWARFImporterDelegate *

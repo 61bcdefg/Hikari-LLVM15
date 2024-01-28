@@ -221,8 +221,6 @@ private:
   LinkOptions Options;
   std::unique_ptr<DwarfStreamer> Streamer;
   std::vector<std::unique_ptr<DWARFFile>> ObjectsForLinking;
-  std::vector<std::unique_ptr<DWARFContext>> ContextForLinking;
-  std::vector<std::unique_ptr<AddressManager>> AddressMapForLinking;
   std::vector<std::string> EmptyWarnings;
 
   /// A list of all .swiftinterface files referenced by the debug

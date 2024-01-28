@@ -27,6 +27,7 @@
 
 #include "Plugins/ExpressionParser/Clang/ClangExternalASTSourceCallbacks.h"
 #include "Plugins/ExpressionParser/Clang/ClangUtil.h"
+#include "Plugins/ExpressionParser/Swift/SwiftPersistentExpressionState.h"
 #include "Plugins/SymbolFile/DWARF/DWARFASTParserSwift.h"
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 
@@ -1295,6 +1296,8 @@ TypeSystemSwiftTypeRef::CollectTypeInfo(swift::Demangle::Demangler &dem,
       break;
 
     case Node::Kind::ExistentialMetatype:
+      swift_flags |= eTypeIsProtocol;
+      LLVM_FALLTHROUGH;
     case Node::Kind::Metatype:
       swift_flags |= eTypeIsMetatype | eTypeHasValue;
       break;
@@ -1376,8 +1379,8 @@ TypeSystemSwiftTypeRef::TypeSystemSwiftTypeRef(Module &module) {
 
 TypeSystemSwiftTypeRefForExpressions::TypeSystemSwiftTypeRefForExpressions(
     lldb::LanguageType language, Target &target, Module &module)
-  : TypeSystemSwiftTypeRef(module),
-    m_target_wp(target.shared_from_this()) {
+    : TypeSystemSwiftTypeRef(module), m_target_wp(target.shared_from_this()),
+      m_persistent_state_up(new SwiftPersistentExpressionState) {
   m_description = "TypeSystemSwiftTypeRefForExpressions(PerModuleFallback)";
   LLDB_LOGF(GetLog(LLDBLog::Types),
             "%s::TypeSystemSwiftTypeRefForExpressions()",
@@ -1392,7 +1395,8 @@ TypeSystemSwiftTypeRefForExpressions::TypeSystemSwiftTypeRefForExpressions(
 
 TypeSystemSwiftTypeRefForExpressions::TypeSystemSwiftTypeRefForExpressions(
     lldb::LanguageType language, Target &target, const char *extra_options)
-  : m_target_wp(target.shared_from_this()) {
+    : m_target_wp(target.shared_from_this()),
+      m_persistent_state_up(new SwiftPersistentExpressionState) {
   m_description = "TypeSystemSwiftTypeRefForExpressions";
   LLDB_LOGF(GetLog(LLDBLog::Types),
             "%s::TypeSystemSwiftTypeRefForExpressions()",
@@ -1417,7 +1421,7 @@ Status TypeSystemSwiftTypeRefForExpressions::PerformCompileUnitImports(
     process_sp = target_sp->GetProcessSP();
   if (!m_swift_ast_context_initialized)
     // Stash sc, the import will happen lazily when SwiftASTContext is created.
-    m_initial_symbol_context = std::make_unique<SymbolContext>(sc);
+    m_initial_symbol_context_up = std::make_unique<SymbolContext>(sc);
   else if (auto *swift_ast_ctx = GetSwiftASTContext())
     swift_ast_ctx->PerformCompileUnitImports(sc, process_sp, status);
   return status;
@@ -1436,10 +1440,7 @@ UserExpression *TypeSystemSwiftTypeRefForExpressions::GetUserExpression(
 
 PersistentExpressionState *
 TypeSystemSwiftTypeRefForExpressions::GetPersistentExpressionState() {
-  auto *swift_ast_ctx = GetSwiftASTContext();
-  if (!swift_ast_ctx)
-    return nullptr;
-  return swift_ast_ctx->GetPersistentExpressionState();
+  return m_persistent_state_up.get();
 }
 
 SwiftASTContext *TypeSystemSwiftTypeRef::GetSwiftASTContext() const {
@@ -1478,14 +1479,14 @@ TypeSystemSwiftTypeRefForExpressions::GetSwiftASTContext() const {
     return nullptr;
 
   assert(llvm::isa<SwiftASTContextForExpressions>(m_swift_ast_context));
-  if (m_initial_symbol_context) {
+  if (m_initial_symbol_context_up) {
     Status error;
     lldb::ProcessSP process_sp;
     if (TargetSP target_sp = GetTargetWP().lock())
       process_sp = target_sp->GetProcessSP();
-    m_swift_ast_context->PerformCompileUnitImports(*m_initial_symbol_context,
+    m_swift_ast_context->PerformCompileUnitImports(*m_initial_symbol_context_up,
                                                    process_sp, error);
-    m_initial_symbol_context.reset();
+    m_initial_symbol_context_up.reset();
   }
 
   return m_swift_ast_context;
@@ -3362,6 +3363,7 @@ bool TypeSystemSwiftTypeRef::IsExistentialType(
   if (!node || node->getNumChildren() != 1)
     return false;
   switch (node->getKind()) {
+  case Node::Kind::ExistentialMetatype:
   case Node::Kind::Protocol:
   case Node::Kind::ProtocolList:
     return true;
@@ -3427,6 +3429,38 @@ TypeSystemSwiftTypeRef::GetReferentType(opaque_compiler_type_t type) {
     return RemangleAsType(dem, node);
   };
   VALIDATE_AND_RETURN(impl, GetReferentType, type, g_no_exe_ctx,
+                      (ReconstructType(type)), (ReconstructType(type)));
+}
+
+swift::Demangle::NodePointer
+TypeSystemSwiftTypeRef::GetStaticSelfType(swift::Demangle::Demangler &dem,
+                                          swift::Demangle::NodePointer node) {
+  using namespace swift::Demangle;
+  return TypeSystemSwiftTypeRef::Transform(dem, node, [](NodePointer node) {
+    if (node->getKind() != Node::Kind::DynamicSelf)
+      return node;
+    // Substitute the static type for dynamic self.
+    assert(node->getNumChildren() == 1);
+    if (node->getNumChildren() != 1)
+      return node;
+    NodePointer type = node->getChild(0);
+    if (type->getKind() != Node::Kind::Type || type->getNumChildren() != 1)
+      return node;
+    return type->getChild(0);
+  });
+}
+
+CompilerType
+TypeSystemSwiftTypeRef::GetStaticSelfType(lldb::opaque_compiler_type_t type) {
+  auto impl = [&]() -> CompilerType {
+    using namespace swift::Demangle;
+    Demangler dem;
+    NodePointer node = GetDemangledType(dem, AsMangledName(type));
+    auto *type_node = dem.createNode(Node::Kind::Type);
+    type_node->addChild(GetStaticSelfType(dem, node), dem);
+    return RemangleAsType(dem, type_node);
+  };
+  VALIDATE_AND_RETURN(impl, GetStaticSelfType, type, g_no_exe_ctx,
                       (ReconstructType(type)), (ReconstructType(type)));
 }
 

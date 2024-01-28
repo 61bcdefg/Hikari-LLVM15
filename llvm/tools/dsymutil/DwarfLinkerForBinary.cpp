@@ -272,14 +272,9 @@ DwarfLinkerForBinary::loadObject(const DebugMapObject &Obj,
   auto ErrorOrObj = loadObject(Obj, DebugMap.getTriple());
 
   if (ErrorOrObj) {
-    ContextForLinking.push_back(
-        std::unique_ptr<DWARFContext>(DWARFContext::create(*ErrorOrObj)));
-    AddressMapForLinking.push_back(
-        std::make_unique<AddressManager>(*this, *ErrorOrObj, Obj));
-
     ObjectsForLinking.push_back(std::make_unique<DWARFFile>(
-        Obj.getObjectFilename(), ContextForLinking.back().get(),
-        AddressMapForLinking.back().get(),
+        Obj.getObjectFilename(), DWARFContext::create(*ErrorOrObj),
+        std::make_unique<AddressManager>(*this, *ErrorOrObj, Obj),
         Obj.empty() ? Obj.getWarnings() : EmptyWarnings));
 
     Error E = RL.link(*ErrorOrObj);
@@ -554,8 +549,6 @@ bool DwarfLinkerForBinary::link(const DebugMap &Map) {
     return false;
 
   ObjectsForLinking.clear();
-  ContextForLinking.clear();
-  AddressMapForLinking.clear();
 
   DebugMap DebugMap(Map.getTriple(), Map.getBinaryPath());
 

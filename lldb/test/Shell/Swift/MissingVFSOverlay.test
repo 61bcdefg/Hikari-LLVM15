@@ -1,5 +1,6 @@
 # Test that error messages from constructing ClangImporter
 # are surfaced to the user.
+# UNSUPPORTED: system-linux
 # REQUIRES: swift
 
 # RUN: rm -rf %t && mkdir %t && cd %t

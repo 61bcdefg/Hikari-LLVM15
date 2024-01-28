@@ -5,6 +5,7 @@ import lldbsuite.test.lldbutil as lldbutil
 import unittest2
 
 
+@skipIfLinux
 class TestSwiftImportSearchPaths(lldbtest.TestBase):
     NO_DEBUG_INFO_TESTCASE = True
     mydir = lldbtest.TestBase.compute_mydir(__file__)

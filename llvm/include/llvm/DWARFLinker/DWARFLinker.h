@@ -13,13 +13,13 @@
 #include "llvm/CodeGen/AccelTable.h"
 #include "llvm/CodeGen/NonRelocatableStringpool.h"
 #include "llvm/DWARFLinker/DWARFLinkerCompileUnit.h"
+#include "llvm/DebugInfo/DWARF/DWARFContext.h"
 #include "llvm/DebugInfo/DWARF/DWARFDebugLine.h"
 #include "llvm/DebugInfo/DWARF/DWARFDebugRangeList.h"
 #include "llvm/DebugInfo/DWARF/DWARFDie.h"
 #include <map>
 
 namespace llvm {
-class DWARFContext;
 class DWARFExpression;
 class DWARFUnit;
 class DataExtractor;
@@ -196,19 +196,26 @@ using UnitListTy = std::vector<std::unique_ptr<CompileUnit>>;
 /// and it`s address map.
 class DWARFFile {
 public:
-  DWARFFile(StringRef Name, DWARFContext *Dwarf, AddressesMap *Addresses,
+  DWARFFile(StringRef Name, std::unique_ptr<DWARFContext> Dwarf,
+            std::unique_ptr<AddressesMap> Addresses,
             const std::vector<std::string> &Warnings)
-      : FileName(Name), Dwarf(Dwarf), Addresses(Addresses), Warnings(Warnings) {
-  }
+      : FileName(Name), Dwarf(std::move(Dwarf)),
+        Addresses(std::move(Addresses)), Warnings(Warnings) {}
 
   /// object file name.
   StringRef FileName;
-  /// source DWARF information.
-  DWARFContext *Dwarf = nullptr;
-  /// helpful address information(list of valid address ranges, relocations).
-  AddressesMap *Addresses = nullptr;
+  /// The source DWARF information.
+  std::unique_ptr<DWARFContext> Dwarf;
+  /// Helpful address information(list of valid address ranges, relocations).
+  std::unique_ptr<AddressesMap> Addresses;
   /// warnings for object file.
   const std::vector<std::string> &Warnings;
+
+  /// Unloads object file and corresponding AddressesMap and Dwarf Context.
+  void unload() {
+    Addresses.reset();
+    Dwarf.reset();
+  }
 };
 
 typedef std::function<void(const Twine &Warning, StringRef Context,
@@ -445,7 +452,8 @@ private:
     /// the debug object.
     void clear() {
       CompileUnits.clear();
-      File.Addresses->clear();
+      ModuleUnits.clear();
+      File.unload();
     }
   };
 
