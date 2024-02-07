@@ -15,7 +15,7 @@
 使用[Swift Toolchain](https://github.com/61bcdefg/Hikari-Swift)。
 
 需要注意的是添加混淆参数的位置是在**Swift Compiler - Other Flags**中的**Other Swift Flags**，并且是在前面加-Xllvm，而不是-mllvm。
-关闭优化的地方在**Swift Compiler - Code Generation**中的**Optimization Level**，设置为 *No Optimization [-Onone]*
+关闭优化的地方在**Swift Compiler - Code Generation**中的**Optimization Level**，设置为 *No Optimization [-Onone]* 。由于swift语言的特性，如果混淆swift不关闭优化，字符串混淆可能会失效
 
 每次修改Other Swift Flags后编译前需要先Shift+Command+K(Clean Build Folder)，因为Swift并不会像OC一样检测到项目cflag的修改就会重新编译
 
