@@ -40,6 +40,7 @@
 #include "llvm/Transforms/Scalar/SimpleLoopUnswitch.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Vectorize.h"
+#include "llvm/Transforms/Obfuscation/Obfuscation.h"
 
 using namespace llvm;
 
@@ -599,6 +600,8 @@ void PassManagerBuilder::populateModulePassManager(
     else if (GlobalExtensionsNotEmpty() || !Extensions.empty())
       MPM.add(createBarrierNoopPass());
 
+    MPM.add(createObfuscationLegacyPass());
+
     addExtensionsToPM(EP_EnabledOnOptLevel0, MPM);
 
     MPM.add(createAnnotationRemarksLegacyPass());
@@ -795,6 +798,8 @@ void PassManagerBuilder::populateModulePassManager(
   MPM.add(createCFGSimplificationPass(
       SimplifyCFGOptions().convertSwitchRangeToICmp(true)));
 
+  MPM.add(createObfuscationLegacyPass());
+  
   addExtensionsToPM(EP_OptimizerLast, MPM);
 
   MPM.add(createAnnotationRemarksLegacyPass());

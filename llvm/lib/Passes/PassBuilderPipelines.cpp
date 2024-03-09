@@ -128,6 +128,7 @@
 #include "llvm/Transforms/Vectorize/LoopVectorize.h"
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
+#include "llvm/Transforms/Obfuscation/Obfuscation.h"
 
 using namespace llvm;
 
@@ -1347,6 +1348,8 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
       PGOOpt->Action == PGOOptions::SampleUse)
     MPM.addPass(PseudoProbeUpdatePass());
 
+  MPM.addPass(ObfuscationPass());
+
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
 
@@ -1407,6 +1410,8 @@ PassBuilder::buildThinLTOPreLinkDefaultPipeline(OptimizationLevel Level) {
   for (auto &C : OptimizerLastEPCallbacks)
     C(MPM, Level);
 
+  MPM.addPass(ObfuscationPass());
+
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
 
@@ -1464,6 +1469,8 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
   // Now add the optimization pipeline.
   MPM.addPass(buildModuleOptimizationPipeline(
       Level, ThinOrFullLTOPhase::ThinLTOPostLink));
+
+  MPM.addPass(ObfuscationPass());
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -1875,6 +1882,8 @@ ModulePassManager PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
 
   for (auto &C : OptimizerLastEPCallbacks)
     C(MPM, Level);
+
+  MPM.addPass(ObfuscationPass());
 
   if (LTOPreLink)
     addRequiredLTOPreLinkPasses(MPM);
