@@ -1,0 +1,6 @@
+[submodule "llvm/lib/Transforms/Obfuscation"]
+	path = llvm/lib/Transforms/Obfuscation
+	url = https://github.com/61bcdefg/Hikari-LLVM15-Core.git
+[submodule "llvm/include/llvm/Transforms/Obfuscation"]
+	path = llvm/include/llvm/Transforms/Obfuscation
+	url = https://github.com/61bcdefg/Hikari-LLVM15-Headers.git
