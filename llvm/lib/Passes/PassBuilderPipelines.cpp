@@ -1291,7 +1291,6 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
          "Must request optimizations for the default pipeline!");
 
   ModulePassManager MPM;
-  MPM.addPass(ObfuscationPass());
 
   // Convert @llvm.global.annotations to !annotation metadata.
   MPM.addPass(Annotation2MetadataPass());
@@ -1317,6 +1316,8 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
   if (PGOOpt && PGOOpt->PseudoProbeForProfiling &&
       PGOOpt->Action == PGOOptions::SampleUse)
     MPM.addPass(PseudoProbeUpdatePass());
+  
+  MPM.addPass(ObfuscationPass());
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -1333,7 +1334,6 @@ PassBuilder::buildThinLTOPreLinkDefaultPipeline(OptimizationLevel Level) {
          "Must request optimizations for the default pipeline!");
 
   ModulePassManager MPM;
-  MPM.addPass(ObfuscationPass());
 
   // Convert @llvm.global.annotations to !annotation metadata.
   MPM.addPass(Annotation2MetadataPass());
@@ -1381,6 +1381,8 @@ PassBuilder::buildThinLTOPreLinkDefaultPipeline(OptimizationLevel Level) {
   // add callbacks there in case of in-process ThinLTO called by linker.
   for (auto &C : OptimizerLastEPCallbacks)
     C(MPM, Level);
+  
+  MPM.addPass(ObfuscationPass());
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -1393,7 +1395,6 @@ PassBuilder::buildThinLTOPreLinkDefaultPipeline(OptimizationLevel Level) {
 ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
     OptimizationLevel Level, const ModuleSummaryIndex *ImportSummary) {
   ModulePassManager MPM;
-  MPM.addPass(ObfuscationPass());
 
   // Convert @llvm.global.annotations to !annotation metadata.
   MPM.addPass(Annotation2MetadataPass());
@@ -1439,6 +1440,8 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
 
   // Now add the optimization pipeline.
   MPM.addPass(buildModuleOptimizationPipeline(Level));
+
+  MPM.addPass(ObfuscationPass());
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -1750,7 +1753,6 @@ ModulePassManager PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
          "buildO0DefaultPipeline should only be used with O0");
 
   ModulePassManager MPM;
-  MPM.addPass(ObfuscationPass());
 
   // Perform pseudo probe instrumentation in O0 mode. This is for the
   // consistency between different build modes. For example, a LTO build can be
@@ -1845,6 +1847,8 @@ ModulePassManager PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
 
   for (auto &C : OptimizerLastEPCallbacks)
     C(MPM, Level);
+  
+  MPM.addPass(ObfuscationPass());
 
   if (LTOPreLink)
     addRequiredLTOPreLinkPasses(MPM);
