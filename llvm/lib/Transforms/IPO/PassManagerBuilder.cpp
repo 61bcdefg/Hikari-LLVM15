@@ -659,8 +659,6 @@ void PassManagerBuilder::addVectorPasses(legacy::PassManagerBase &PM,
 
 void PassManagerBuilder::populateModulePassManager(
     legacy::PassManagerBase &MPM) {
-  MPM.add(createObfuscationLegacyPass());
-
   // Whether this is a default or *LTO pre-link pipeline. The FullLTO post-link
   // is handled separately, so just check this is not the ThinLTO post-link.
   bool DefaultOrPreLinkPipeline = !PerformThinLTO;
@@ -706,6 +704,8 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createEliminateAvailableExternallyPass());
       MPM.add(createGlobalDCEPass());
     }
+
+    MPM.add(createObfuscationLegacyPass());
 
     addExtensionsToPM(EP_EnabledOnOptLevel0, MPM);
 
@@ -978,6 +978,8 @@ void PassManagerBuilder::populateModulePassManager(
   // LoopSink (and other loop passes since the last simplifyCFG) might have
   // resulted in single-entry-single-exit or empty blocks. Clean up the CFG.
   MPM.add(createCFGSimplificationPass());
+
+  MPM.add(createObfuscationLegacyPass());
 
   addExtensionsToPM(EP_OptimizerLast, MPM);
 
