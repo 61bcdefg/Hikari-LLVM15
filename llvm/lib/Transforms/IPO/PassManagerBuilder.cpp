@@ -576,8 +576,6 @@ void PassManagerBuilder::addVectorPasses(legacy::PassManagerBase &PM,
 
 void PassManagerBuilder::populateModulePassManager(
     legacy::PassManagerBase &MPM) {
-  MPM.add(createObfuscationLegacyPass());
-
   MPM.add(createAnnotation2MetadataLegacyPass());
 
   // Allow forcing function attributes as a debugging and tuning aid.
@@ -600,6 +598,8 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createMergeFunctionsPass());
     else if (GlobalExtensionsNotEmpty() || !Extensions.empty())
       MPM.add(createBarrierNoopPass());
+
+    MPM.add(createObfuscationLegacyPass());
 
     addExtensionsToPM(EP_EnabledOnOptLevel0, MPM);
 
@@ -798,6 +798,8 @@ void PassManagerBuilder::populateModulePassManager(
   MPM.add(createCFGSimplificationPass(
       SimplifyCFGOptions().convertSwitchRangeToICmp(true)));
 
+  MPM.add(createObfuscationLegacyPass());
+  
   addExtensionsToPM(EP_OptimizerLast, MPM);
 
   MPM.add(createAnnotationRemarksLegacyPass());
