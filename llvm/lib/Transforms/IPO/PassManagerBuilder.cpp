@@ -290,8 +290,6 @@ void PassManagerBuilder::addVectorPasses(legacy::PassManagerBase &PM,
 
 void PassManagerBuilder::populateModulePassManager(
     legacy::PassManagerBase &MPM) {
-  MPM.add(createObfuscationLegacyPass());
-
   MPM.add(createAnnotation2MetadataLegacyPass());
 
   // Allow forcing function attributes as a debugging and tuning aid.
@@ -312,6 +310,9 @@ void PassManagerBuilder::populateModulePassManager(
     // builds. The function merging pass is
     if (MergeFunctions)
       MPM.add(createMergeFunctionsPass());
+    
+    MPM.add(createObfuscationLegacyPass());
+
     return;
   }
 
@@ -451,6 +452,8 @@ void PassManagerBuilder::populateModulePassManager(
   // resulted in single-entry-single-exit or empty blocks. Clean up the CFG.
   MPM.add(createCFGSimplificationPass(
       SimplifyCFGOptions().convertSwitchRangeToICmp(true)));
+  
+  MPM.add(createObfuscationLegacyPass());
 }
 
 LLVMPassManagerBuilderRef LLVMPassManagerBuilderCreate() {
