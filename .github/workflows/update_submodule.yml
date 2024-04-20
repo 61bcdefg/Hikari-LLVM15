@@ -2,7 +2,7 @@ name: Update submodule
 
 on:
   schedule:
-    - cron: '0 */4 * * *'
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 jobs:
@@ -182,4 +182,35 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: llvm-16.0.0rel
+
+      - name: Checkout llvm-17.0.6rel
+        uses: actions/checkout@v3
+        with:
+          ref: 'llvm-17.0.6rel'
+          submodules: 'recursive'
+  
+      - name: Set Git config
+        run: |
+          git config user.name 'Submodule AutoUpdater'
+          git config user.email 'actions@users.noreply.github.com'
+  
+      - name: Update submodule llvm-17.0.6rel
+        id: llvm1706
+        run: |
+          git submodule update --remote
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Some files have been modified"
+            echo "HAS_CHANGES=1" >> $GITHUB_OUTPUT
+            git add .
+            git commit -m "update submodule"
+          fi
+  
+      - name: Push changes llvm-17.0.6rel
+        if: ${{ steps.llvm1706.outputs.HAS_CHANGES == '1' }}
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: llvm-17.0.6rel
+  
+  
 
