@@ -1,24 +1,19 @@
-name: Update submodule
+name: Update Submodules
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 jobs:
-  updateSubmodule:
+  update_submodules:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout llvm-swift-5.7.2-RELEASE
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.6
         with:
-          ref: 'llvm-swift-5.7.2-RELEASE'
-          submodules: 'recursive'
-
-      - name: Set Git config
-        run: |
-          git config user.name 'Submodule AutoUpdater'
-          git config user.email 'actions@users.noreply.github.com'
+          ref: "llvm-swift-5.7.2-RELEASE"
+          submodules: "recursive"
 
       - name: Update submodule llvm-swift-5.7.2-RELEASE
         id: swift572
@@ -39,15 +34,10 @@ jobs:
           branch: llvm-swift-5.7.2-RELEASE
 
       - name: Checkout llvm-swift-5.8-RELEASE
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.6
         with:
-          ref: 'llvm-swift-5.8-RELEASE'
-          submodules: 'recursive'
-
-      - name: Set Git config
-        run: |
-          git config user.name 'Submodule AutoUpdater'
-          git config user.email 'actions@users.noreply.github.com'
+          ref: "llvm-swift-5.8-RELEASE"
+          submodules: "recursive"
 
       - name: Update submodule llvm-swift-5.8-RELEASE
         id: swift58
@@ -68,15 +58,10 @@ jobs:
           branch: llvm-swift-5.8-RELEASE
 
       - name: Checkout llvm-swift-5.9-RELEASE
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.6
         with:
-          ref: 'llvm-swift-5.9-RELEASE'
-          submodules: 'recursive'
-
-      - name: Set Git config
-        run: |
-          git config user.name 'Submodule AutoUpdater'
-          git config user.email 'actions@users.noreply.github.com'
+          ref: "llvm-swift-5.9-RELEASE"
+          submodules: "recursive"
 
       - name: Update submodule llvm-swift-5.9-RELEASE
         id: swift59
@@ -97,15 +82,10 @@ jobs:
           branch: llvm-swift-5.9-RELEASE
 
       - name: Checkout llvm-swift-5.10-RELEASE
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.6
         with:
-          ref: 'llvm-swift-5.10-RELEASE'
-          submodules: 'recursive'
-
-      - name: Set Git config
-        run: |
-          git config user.name 'Submodule AutoUpdater'
-          git config user.email 'actions@users.noreply.github.com'
+          ref: "llvm-swift-5.10-RELEASE"
+          submodules: "recursive"
 
       - name: Update submodule llvm-swift-5.10-RELEASE
         id: swift510
@@ -126,15 +106,10 @@ jobs:
           branch: llvm-swift-5.10-RELEASE
 
       - name: Checkout llvm-15.0.2rel
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.6
         with:
-          ref: 'llvm-15.0.2rel'
-          submodules: 'recursive'
-
-      - name: Set Git config
-        run: |
-          git config user.name 'Submodule AutoUpdater'
-          git config user.email 'actions@users.noreply.github.com'
+          ref: "llvm-15.0.2rel"
+          submodules: "recursive"
 
       - name: Update submodule llvm-15.0.2rel
         id: llvm1502
@@ -155,15 +130,10 @@ jobs:
           branch: llvm-15.0.2rel
 
       - name: Checkout llvm-16.0.0rel
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.6
         with:
-          ref: 'llvm-16.0.0rel'
-          submodules: 'recursive'
-
-      - name: Set Git config
-        run: |
-          git config user.name 'Submodule AutoUpdater'
-          git config user.email 'actions@users.noreply.github.com'
+          ref: "llvm-16.0.0rel"
+          submodules: "recursive"
 
       - name: Update submodule llvm-16.0.0rel
         id: llvm1600
@@ -184,16 +154,11 @@ jobs:
           branch: llvm-16.0.0rel
 
       - name: Checkout llvm-17.0.6rel
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.6
         with:
-          ref: 'llvm-17.0.6rel'
-          submodules: 'recursive'
-  
-      - name: Set Git config
-        run: |
-          git config user.name 'Submodule AutoUpdater'
-          git config user.email 'actions@users.noreply.github.com'
-  
+          ref: "llvm-17.0.6rel"
+          submodules: "recursive"
+
       - name: Update submodule llvm-17.0.6rel
         id: llvm1706
         run: |
@@ -204,13 +169,10 @@ jobs:
             git add .
             git commit -m "update submodule"
           fi
-  
+
       - name: Push changes llvm-17.0.6rel
         if: ${{ steps.llvm1706.outputs.HAS_CHANGES == '1' }}
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: llvm-17.0.6rel
-  
-  
-
