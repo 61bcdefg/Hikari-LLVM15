@@ -8,6 +8,8 @@
 
 下载后编译
 
+MacOS可直接从[actions](https://github.com/61bcdefg/Hikari-LLVM15/actions)中下载
+
 ### Swift混淆支持
 
 由于Xcode的LLVM相比原版LLVM有大量闭源改动，Hanabi在Xcode 15起已无法编译Swift。
@@ -131,7 +133,7 @@ AntiDebugging PreCompiled IR文件的路径
 
 -strcry_prob
 
-每个字符串中每个byte被加密的概率。默认为100。这个功能是为了给一些需要的加密强度不高，但是重视体积的人。
+每个字符串中每个byte被加密的概率。默认为100。
 
 #### BogusControlFlow
 
