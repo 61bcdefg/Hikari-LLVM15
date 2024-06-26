@@ -6,9 +6,9 @@
 
 ## 使用
 
-下载后编译
+下载后构建
 
-MacOS可直接从[actions](https://github.com/61bcdefg/Hikari-LLVM15/actions)中下载
+MacOS可直接从[actions](https://github.com/61bcdefg/Hikari-LLVM15/actions)中下载已构建完成的Xcode Toolchain
 
 ### Swift混淆支持
 
