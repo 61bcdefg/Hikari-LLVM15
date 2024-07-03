@@ -270,7 +270,8 @@ void hikari_bcf_prob(uint32_t);
 -   `bcf_junkasm_minnum`
 -   `bcf_createfunc`
 -   `constenc_subxor`
--   `constenc_togv`
+-   `constenc_togv_prob`
+-   `constenc_subxor_prob`
 -   `constenc_prob`
 -   `constenc_times`
 -   `fw_prob`
