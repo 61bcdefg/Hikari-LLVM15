@@ -219,9 +219,16 @@ int foo() {
 }
 ```
 ##### ObjC Methods
-For example you want to pass indibran-use-stack like the C++/C example:
+For example you want to pass indibran-use-stack like the C/C++ example:
 ```
-extern void hikari_indibran_use_stack(void);
+#ifdef __cplusplus
+extern "C" {
+#endif
+void hikari_indibran_use_stack(void);
+#ifdef __cplusplus
+}
+#endif
+
 @implementation foo2 : NSObject
 +(void)foo{
   hikari_indibran_use_stack();
@@ -231,7 +238,14 @@ extern void hikari_indibran_use_stack(void);
 ```
 If you only wanted the BogusControlFlow of function int foo() to be obfuscated with a probability of 100:
 ```
-extern void hikari_bcf_prob(uint32_t);
+#ifdef __cplusplus
+extern "C" {
+#endif
+void hikari_bcf_prob(uint32_t);
+#ifdef __cplusplus
+}
+#endif
+
 @implementation foo2 : NSObject
 +(void)foo{
   hikari_bcf_prob(100);
