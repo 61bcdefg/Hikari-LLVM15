@@ -1,0 +1,16 @@
+// Check the ABI version support.
+
+// RUN: %clang -fptrauth-abi-version=5                              -target arm64e-apple-ios -c %s -### 2>&1 | FileCheck %s --check-prefix ABIVERSION --check-prefix NOKERNELABIVERSION
+// RUN: %clang -fptrauth-abi-version=5 -mkernel                     -target arm64e-apple-ios -c %s -### 2>&1 | FileCheck %s --check-prefix ABIVERSION --check-prefix KERNELABIVERSION
+// RUN: %clang -fptrauth-abi-version=5 -fapple-kext                 -target arm64e-apple-ios -c %s -### 2>&1 | FileCheck %s --check-prefix ABIVERSION --check-prefix KERNELABIVERSION
+// RUN: %clang -fptrauth-abi-version=5 -fptrauth-kernel-abi-version -target arm64e-apple-ios -c %s -### 2>&1 | FileCheck %s --check-prefix ABIVERSION --check-prefix KERNELABIVERSION
+
+// RUN: %clang -fno-ptrauth-abi-version                             -target arm64e-apple-ios -### 2>&1 | FileCheck %s --check-prefix NOABIVERSION --check-prefix NOKERNELABIVERSION
+// RUoN: %clang -fptrauth-abi-version=5   -fno-ptrauth-abi-version  -target arm64e-apple-ios -### 2>&1 | FileCheck %s --check-prefix NOABIVERSION --check-prefix NOKERNELABIVERSION
+// RUoN: %clang -fno-ptrauth-abi-version  -fptrauth-abi-version=5   -target arm64e-apple-ios -### 2>&1 | FileCheck %s --check-prefix ABIVERSION --check-prefix NOKERNELABIVERSION
+
+// ABIVERSION: "-fptrauth-abi-version=5"
+// ABIVERSION-DEFAULT: "-fptrauth-abi-version=0"
+// NOABIVERSION-NOT: fptrauth-abi-version
+// KERNELABIVERSION: "-fptrauth-kernel-abi-version"
+// NOKERNELABIVERSION-NOT: fptrauth-kernel-abi-version
