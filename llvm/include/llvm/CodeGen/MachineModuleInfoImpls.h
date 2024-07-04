@@ -27,13 +27,6 @@ class MCSymbol;
 /// MachineModuleInfoMachO - This is a MachineModuleInfoImpl implementation
 /// for MachO targets.
 class MachineModuleInfoMachO : public MachineModuleInfoImpl {
-public:
-  /// The information specific to a Darwin '$auth_ptr' stub.
-  struct AuthStubInfo {
-    const MCExpr *AuthPtrRef;
-  };
-
-private:
   /// GVStubs - Darwin '$non_lazy_ptr' stubs.  The key is something like
   /// "Lfoo$non_lazy_ptr", the value is something like "_foo". The extra bit
   /// is true if this GV is external.
@@ -47,7 +40,7 @@ private:
   /// Darwin '$auth_ptr' stubs.  The key is the stub symbol, like
   /// "Lfoo$addend$auth_ptr$ib$12".  The value is the MCExpr representing that
   /// pointer, something like "_foo+addend@AUTH(ib, 12)".
-  DenseMap<MCSymbol *, AuthStubInfo> AuthPtrStubs;
+  DenseMap<MCSymbol *, const MCExpr *> AuthPtrStubs;
 
   virtual void anchor(); // Out of line virtual method.
 
@@ -64,7 +57,7 @@ public:
     return ThreadLocalGVStubs[Sym];
   }
 
-  AuthStubInfo &getAuthPtrStubEntry(MCSymbol *Sym) {
+  const MCExpr *&getAuthPtrStubEntry(MCSymbol *Sym) {
     assert(Sym && "Key cannot be null");
     return AuthPtrStubs[Sym];
   }
@@ -75,29 +68,21 @@ public:
     return getSortedStubs(ThreadLocalGVStubs);
   }
 
-
-  typedef std::pair<MCSymbol *, AuthStubInfo> AuthStubPairTy;
-  typedef std::vector<AuthStubPairTy> AuthStubListTy;
-
-  AuthStubListTy getAuthGVStubList();
+  ExprStubListTy getAuthGVStubList() {
+    return getSortedExprStubs(AuthPtrStubs);
+  }
 };
 
 /// MachineModuleInfoELF - This is a MachineModuleInfoImpl implementation
 /// for ELF targets.
 class MachineModuleInfoELF : public MachineModuleInfoImpl {
-public:
-  struct AuthStubInfo {
-    const MCExpr *AuthPtrRef;
-  };
-
-private:
   /// GVStubs - These stubs are used to materialize global addresses in PIC
   /// mode.
   DenseMap<MCSymbol *, StubValueTy> GVStubs;
 
   /// AuthPtrStubs - These stubs are used to materialize signed addresses for
   /// extern_weak symbols.
-  DenseMap<MCSymbol *, AuthStubInfo> AuthPtrStubs;
+  DenseMap<MCSymbol *, const MCExpr *> AuthPtrStubs;
 
   virtual void anchor(); // Out of line virtual method.
 
@@ -109,7 +94,7 @@ public:
     return GVStubs[Sym];
   }
 
-  AuthStubInfo &getAuthPtrStubEntry(MCSymbol *Sym) {
+  const MCExpr *&getAuthPtrStubEntry(MCSymbol *Sym) {
     assert(Sym && "Key cannot be null");
     return AuthPtrStubs[Sym];
   }
@@ -118,10 +103,9 @@ public:
 
   SymbolListTy GetGVStubList() { return getSortedStubs(GVStubs); }
 
-  using AuthStubPairTy = std::pair<MCSymbol *, AuthStubInfo>;
-  typedef std::vector<AuthStubPairTy> AuthStubListTy;
-
-  AuthStubListTy getAuthGVStubList();
+  ExprStubListTy getAuthGVStubList() {
+    return getSortedExprStubs(AuthPtrStubs);
+  }
 };
 
 /// MachineModuleInfoCOFF - This is a MachineModuleInfoImpl implementation

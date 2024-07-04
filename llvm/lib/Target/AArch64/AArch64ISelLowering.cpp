@@ -9258,8 +9258,7 @@ AArch64TargetLowering::LowerDarwinGlobalTLSAddress(SDValue Op,
   Ops.push_back(DAG.getRegister(AArch64::X0, MVT::i64));
   Ops.push_back(DAG.getRegisterMask(Mask));
   Ops.push_back(Chain.getValue(1));
-  Chain =
-    DAG.getNode(Opcode, DL, DAG.getVTList(MVT::Other, MVT::Glue), Ops);
+  Chain = DAG.getNode(Opcode, DL, DAG.getVTList(MVT::Other, MVT::Glue), Ops);
   return DAG.getCopyFromReg(Chain, DL, AArch64::X0, PtrVT, Chain.getValue(1));
 }
 
@@ -10680,18 +10679,18 @@ SDValue AArch64TargetLowering::LowerBR_JT(SDValue Op,
   auto *AFI = DAG.getMachineFunction().getInfo<AArch64FunctionInfo>();
   AFI->setJumpTableEntryInfo(JTI, 4, nullptr);
 
-  // With aarch64-hardened-codegen, we only expand the full jump table dispatch
+  // With jump-table-hardening, we only expand the full jump table dispatch
   // sequence later, to guarantee the integrity of the intermediate values.
   if (DAG.getMachineFunction().getFunction()
         .hasFnAttribute("jump-table-hardening") ||
       Subtarget->getTargetTriple().isArm64e()) {
     assert(Subtarget->isTargetMachO() &&
            "hardened jump-table not yet supported on non-macho");
-    SDValue Chain = DAG.getCopyToReg(DAG.getEntryNode(), DL, AArch64::X16,
-                                     Entry, SDValue());
+    SDValue X16Copy = DAG.getCopyToReg(DAG.getEntryNode(), DL, AArch64::X16,
+                                       Entry, SDValue());
     SDNode *B = DAG.getMachineNode(AArch64::BR_JumpTable, DL, MVT::Other,
                                    DAG.getTargetJumpTable(JTI, MVT::i32),
-                                   Chain.getValue(0), Chain.getValue(1));
+                                   X16Copy.getValue(0), X16Copy.getValue(1));
     return SDValue(B, 0);
   }
 
@@ -10702,21 +10701,18 @@ SDValue AArch64TargetLowering::LowerBR_JT(SDValue Op,
   return DAG.getNode(ISD::BRIND, DL, MVT::Other, JTInfo, SDValue(Dest, 0));
 }
 
-SDValue AArch64TargetLowering::LowerBRIND(SDValue Op,
-                                          SelectionDAG &DAG) const {
-  // On arm64e, BRIND is only used for indirectbr.  Jump table branches are
-  // independently lowered to BRAA.
+SDValue AArch64TargetLowering::LowerBRIND(SDValue Op, SelectionDAG &DAG) const {
   MachineFunction &MF = DAG.getMachineFunction();
-  if (!MF.getFunction().hasFnAttribute("ptrauth-indirect-gotos"))
+  std::optional<uint16_t> BADisc =
+      Subtarget->getPtrAuthBlockAddressDiscriminator(MF.getFunction());
+  if (!BADisc)
     return SDValue();
 
   SDLoc DL(Op);
   SDValue Chain = Op.getOperand(0);
   SDValue Dest = Op.getOperand(1);
 
-  std::string StringDisc = (MF.getName() + " blockaddress").str();
-  SDValue Disc = DAG.getTargetConstant(
-    getPointerAuthStableSipHash(StringDisc), DL, MVT::i64);
+  SDValue Disc = DAG.getTargetConstant(*BADisc, DL, MVT::i64);
   SDValue Key = DAG.getTargetConstant(AArch64PACKey::IA, DL, MVT::i32);
   SDValue AddrDisc = DAG.getRegister(AArch64::XZR, MVT::i64);
 
@@ -10744,28 +10740,24 @@ SDValue AArch64TargetLowering::LowerConstantPool(SDValue Op,
 
 SDValue AArch64TargetLowering::LowerBlockAddress(SDValue Op,
                                                SelectionDAG &DAG) const {
-  BlockAddressSDNode *BA = cast<BlockAddressSDNode>(Op);
+  BlockAddressSDNode *BAN = cast<BlockAddressSDNode>(Op);
+  const BlockAddress *BA = BAN->getBlockAddress();
 
-  // On arm64e, BRIND is only used for indirectbr.  Jump table branches are
-  // independently lowered to BRAA.
-  Function *BAFn = BA->getBlockAddress()->getFunction();
-  if (BAFn->hasFnAttribute("ptrauth-indirect-gotos")) {
+  if (std::optional<uint16_t> BADisc =
+          Subtarget->getPtrAuthBlockAddressDiscriminator(*BA->getFunction())) {
     SDLoc DL(Op);
 
     // This isn't cheap, but BRIND is rare.
-    SDValue TargetBA =
-      DAG.getTargetBlockAddress(BA->getBlockAddress(), BA->getValueType(0));
+    SDValue TargetBA = DAG.getTargetBlockAddress(BA, BAN->getValueType(0));
 
-    std::string StringDisc = (BAFn->getName() + " blockaddress").str();
-    SDValue Disc = DAG.getTargetConstant(
-      getPointerAuthStableSipHash(StringDisc), DL, MVT::i64);
+    SDValue Disc = DAG.getTargetConstant(*BADisc, DL, MVT::i64);
 
     SDValue Key = DAG.getTargetConstant(AArch64PACKey::IA, DL, MVT::i32);
     SDValue AddrDisc = DAG.getRegister(AArch64::XZR, MVT::i64);
 
     SDNode *MOV =
-      DAG.getMachineNode(AArch64::MOVaddrPAC, DL, {MVT::Other, MVT::Glue},
-                         {TargetBA, Key, AddrDisc, Disc});
+        DAG.getMachineNode(AArch64::MOVaddrPAC, DL, {MVT::Other, MVT::Glue},
+                           {TargetBA, Key, AddrDisc, Disc});
     return DAG.getCopyFromReg(SDValue(MOV, 0), DL, AArch64::X16, MVT::i64,
                               SDValue(MOV, 1));
   }
@@ -10773,11 +10765,11 @@ SDValue AArch64TargetLowering::LowerBlockAddress(SDValue Op,
   CodeModel::Model CM = getTargetMachine().getCodeModel();
   if (CM == CodeModel::Large && !Subtarget->isTargetMachO()) {
     if (!getTargetMachine().isPositionIndependent())
-      return getAddrLarge(BA, DAG);
+      return getAddrLarge(BAN, DAG);
   } else if (CM == CodeModel::Tiny) {
-    return getAddrTiny(BA, DAG);
+    return getAddrTiny(BAN, DAG);
   }
-  return getAddr(BA, DAG);
+  return getAddr(BAN, DAG);
 }
 
 SDValue AArch64TargetLowering::LowerDarwin_VASTART(SDValue Op,

@@ -46,7 +46,6 @@
 #include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/SipHash.h"
 #include "llvm/Support/raw_ostream.h"
 #include <optional>
 
@@ -2549,13 +2548,11 @@ bool AArch64InstructionSelector::select(MachineInstr &I) {
     return selectCompareBranch(I, MF, MRI);
 
   case TargetOpcode::G_BRINDIRECT: {
-    if (MF.getFunction().hasFnAttribute("ptrauth-indirect-gotos")) {
-      std::string StringDisc = (MF.getName() + " blockaddress").str();
-      uint64_t Disc = getPointerAuthStableSipHash(StringDisc);
-
+    if (std::optional<uint16_t> BADisc =
+            STI.getPtrAuthBlockAddressDiscriminator(MF.getFunction())) {
       auto MI = MIB.buildInstr(AArch64::BRA, {}, {I.getOperand(0).getReg()});
       MI.addImm(AArch64PACKey::IA);
-      MI.addImm(Disc);
+      MI.addImm(*BADisc);
       MI.addReg(/*AddrDisc=*/AArch64::XZR);
       I.eraseFromParent();
       return constrainSelectedInstRegOperands(*MI, TII, TRI, RBI);
@@ -3479,18 +3476,16 @@ bool AArch64InstructionSelector::select(MachineInstr &I) {
   }
   case TargetOpcode::G_BLOCK_ADDR: {
     Function *BAFn = I.getOperand(1).getBlockAddress()->getFunction();
-    if (BAFn->hasFnAttribute("ptrauth-indirect-gotos")) {
-      std::string StringDisc = (BAFn->getName() + " blockaddress").str();
-      uint64_t Disc = getPointerAuthStableSipHash(StringDisc);
-
+    if (std::optional<uint16_t> BADisc =
+            STI.getPtrAuthBlockAddressDiscriminator(*BAFn)) {
       MIB.buildInstr(TargetOpcode::IMPLICIT_DEF, {AArch64::X16}, {});
       MIB.buildInstr(TargetOpcode::IMPLICIT_DEF, {AArch64::X17}, {});
       MIB.buildInstr(AArch64::MOVaddrPAC)
-        .addBlockAddress(I.getOperand(1).getBlockAddress())
-        .addImm(AArch64PACKey::IA)
-        .addReg(/*AddrDisc=*/AArch64::XZR)
-        .addImm(Disc)
-        .constrainAllUses(TII, TRI, RBI);
+          .addBlockAddress(I.getOperand(1).getBlockAddress())
+          .addImm(AArch64PACKey::IA)
+          .addReg(/*AddrDisc=*/AArch64::XZR)
+          .addImm(*BADisc)
+          .constrainAllUses(TII, TRI, RBI);
       MIB.buildCopy(I.getOperand(0).getReg(), Register(AArch64::X16));
       RBI.constrainGenericRegister(I.getOperand(0).getReg(),
                                    AArch64::GPR64RegClass, MRI);
@@ -3701,12 +3696,18 @@ bool AArch64InstructionSelector::selectTLSGlobalValue(
   // TLS calls preserve all registers except those that absolutely must be
   // trashed: X0 (it takes an argument), LR (it's a call) and NZCV (let's not be
   // silly).
-  bool IsAuthCall = MF.getFunction().hasFnAttribute("ptrauth-calls");
-  MIB.buildInstr(IsAuthCall ? AArch64::BLRAAZ : getBLRCallOpcode(MF), {},
-                 {Load})
-    .addUse(AArch64::X0, RegState::Implicit)
-    .addDef(AArch64::X0, RegState::Implicit)
-    .addRegMask(TRI.getTLSCallPreservedMask());
+  unsigned Opcode = getBLRCallOpcode(MF);
+
+  // With ptrauth-calls, the tlv access thunk pointer is authenticated (IA, 0).
+  if (MF.getFunction().hasFnAttribute("ptrauth-calls")) {
+    assert(Opcode == AArch64::BLR);
+    Opcode = AArch64::BLRAAZ;
+  }
+
+  MIB.buildInstr(Opcode, {}, {Load})
+      .addUse(AArch64::X0, RegState::Implicit)
+      .addDef(AArch64::X0, RegState::Implicit)
+      .addRegMask(TRI.getTLSCallPreservedMask());
 
   MIB.buildCopy(I.getOperand(0).getReg(), Register(AArch64::X0));
   RBI.constrainGenericRegister(I.getOperand(0).getReg(), AArch64::GPR64RegClass,

@@ -12,10 +12,8 @@
 #include "Utils/AArch64BaseInfo.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
-#include "Utils/AArch64BaseInfo.h"
 
 namespace llvm {
-class ConstantPtrAuth;
 
 /// This implementation is used for AArch64 ELF targets (Linux in particular).
 class AArch64_ELFTargetObjectFile : public TargetLoweringObjectFileELF {
@@ -65,12 +63,8 @@ public:
 
   MCSymbol *getAuthPtrSlotSymbol(const TargetMachine &TM,
                                  MachineModuleInfo *MMI, const MCSymbol *RawSym,
-                                 int64_t RawSymOffset, AArch64PACKey::ID Key,
-                                 uint16_t Discriminator,
-                                 bool HasAddressDiversity = false) const;
-
-  MCSymbol *getAuthPtrSlotSymbol(const TargetMachine &TM, MachineModuleInfo *MMI,
-                                 const ConstantPtrAuth &CPA) const;
+                                 AArch64PACKey::ID Key,
+                                 uint16_t Discriminator) const;
 };
 
 /// This implementation is used for AArch64 COFF targets.

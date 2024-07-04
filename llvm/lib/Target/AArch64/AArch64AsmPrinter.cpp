@@ -62,7 +62,6 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/SipHash.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/TargetParser/Triple.h"
@@ -113,10 +112,9 @@ public:
 
   const MCExpr *lowerConstantPtrAuth(const ConstantPtrAuth &CPA) override;
 
-  void authLRBeforeTailCall(const MachineFunction &MF, unsigned ScratchReg);
+  const MCExpr *lowerBlockAddressConstant(const BlockAddress &BA) override;
 
-  const MCExpr *
-  lowerBlockAddressConstant(const BlockAddress *BA) override;
+  void authLRBeforeTailCall(const MachineFunction &MF, unsigned ScratchReg);
 
   void emitStartOfAsmFile(Module &M) override;
   void emitJumpTableInfo() override;
@@ -941,13 +939,12 @@ void AArch64AsmPrinter::emitHwasanMemaccessSymbols(Module &M) {
   }
 }
 
-template <typename MachineModuleInfoTarget>
-static void emitAuthenticatedPointer(
-    MCStreamer &OutStreamer, MCSymbol *StubLabel,
-    const typename MachineModuleInfoTarget::AuthStubInfo &StubInfo) {
+static void emitAuthenticatedPointer(MCStreamer &OutStreamer,
+                                     MCSymbol *StubLabel,
+                                     const MCExpr *StubAuthPtrRef) {
   // sym$auth_ptr$key$disc:
   OutStreamer.emitLabel(StubLabel);
-  OutStreamer.emitValue(StubInfo.AuthPtrRef, /*size=*/8);
+  OutStreamer.emitValue(StubAuthPtrRef, /*size=*/8);
 }
 
 void AArch64AsmPrinter::emitEndOfAsmFile(Module &M) {
@@ -970,8 +967,7 @@ void AArch64AsmPrinter::emitEndOfAsmFile(Module &M) {
       emitAlignment(Align(8));
 
       for (auto &Stub : Stubs)
-        emitAuthenticatedPointer<MachineModuleInfoMachO>(
-            *OutStreamer, Stub.first, Stub.second);
+        emitAuthenticatedPointer(*OutStreamer, Stub.first, Stub.second);
 
       OutStreamer->addBlankLine();
     }
@@ -996,8 +992,7 @@ void AArch64AsmPrinter::emitEndOfAsmFile(Module &M) {
       emitAlignment(Align(8));
 
       for (const auto &Stub : Stubs)
-        emitAuthenticatedPointer<MachineModuleInfoELF>(*OutStreamer, Stub.first,
-                                                       Stub.second);
+        emitAuthenticatedPointer(*OutStreamer, Stub.first, Stub.second);
 
       OutStreamer->addBlankLine();
     }
@@ -1064,11 +1059,6 @@ void AArch64AsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNum,
   }
   case MachineOperand::MO_BlockAddress: {
     MCSymbol *Sym = GetBlockAddressSymbol(MO.getBlockAddress());
-
-    if (MO.getBlockAddress()->getFunction()->hasFnAttribute(
-        "ptrauth-indirect-gotos"))
-      llvm_unreachable("unimplemented ptrauth blockaddress operand");
-
     Sym->print(O, MAI);
     break;
   }
@@ -1439,16 +1429,18 @@ void AArch64AsmPrinter::LowerHardenedBRJumpTable(const MachineInstr &MI) {
   assert(!JTs.empty() && "Invalid JT index for jump-table dispatch");
 
   // Emit:
-  //     adrp xTable, Ltable@PAGE
-  //     add xTable, Ltable@PAGEOFF
-  //     mov xEntry, #<size of table> ; depending on table size, with MOVKs
-  //     cmp xEntry, #<size of table> ; if table size fits in 12-bit immediate
-  //     csel xEntry, xEntry, xzr, ls
-  //     ldrsw xScratch, [xTable, xEntry, lsl #2] ; kill xEntry, xScratch = xEntry
-  //   Ltmp:
-  //     adr xTable, Ltmp
-  //     add xDest, xTable, xScratch ; kill xTable, xDest = xTable
-  //     br xDest
+  //     mov x17, #<size of table>     ; depending on table size, with MOVKs
+  //     cmp x16, x17                  ; or #imm if table size fits in 12-bit
+  //     csel x16, x16, xzr, ls        ; check for index overflow
+  //
+  //     adrp x17, Ltable@PAGE         ; materialize table address
+  //     add x17, Ltable@PAGEOFF
+  //     ldrsw x16, [x17, x16, lsl #2] ; load table entry
+  //
+  //   Lanchor:
+  //     adr x17, Lanchor              ; compute target address
+  //     add x16, x17, x16
+  //     br x16                        ; branch to target
 
   MachineOperand JTOp = MI.getOperand(0);
 
@@ -1459,7 +1451,7 @@ void AArch64AsmPrinter::LowerHardenedBRJumpTable(const MachineInstr &MI) {
   const uint64_t NumTableEntries = JTs[JTI].MBBs.size();
 
   // cmp only supports a 12-bit immediate.  If we need more, materialize the
-  // immediate, using TableReg as a scratch register.
+  // immediate, using x17 as a scratch register.
   uint64_t MaxTableEntry = NumTableEntries - 1;
   if (isUInt<12>(MaxTableEntry)) {
     EmitToStreamer(*OutStreamer, MCInstBuilder(AArch64::SUBSXri)
@@ -1537,9 +1529,8 @@ void AArch64AsmPrinter::LowerHardenedBRJumpTable(const MachineInstr &MI) {
                                    .addImm(1));
   ++InstsEmitted;
 
-  // Really an ADR with a label attached.
-  auto AdrLabel = MF->getContext().createTempSymbol();
-  auto AdrLabelE = MCSymbolRefExpr::create(AdrLabel, MF->getContext());
+  MCSymbol *AdrLabel = MF->getContext().createTempSymbol();
+  auto *AdrLabelE = MCSymbolRefExpr::create(AdrLabel, MF->getContext());
   AArch64FI->setJumpTableEntryInfo(JTI, 4, AdrLabel);
 
   OutStreamer->emitLabel(AdrLabel);
@@ -2406,8 +2397,8 @@ void AArch64AsmPrinter::LowerLOADauthptrstatic(const MachineInstr &MI) {
     assert(GAOp.getOffset() == 0 &&
            "non-zero offset for $auth_ptr$ stub slots is not supported");
     const MCSymbol *GASym = TM.getSymbol(GAOp.getGlobal());
-    AuthPtrStubSym = TLOF.getAuthPtrSlotSymbol(TM, &MF->getMMI(), GASym,
-                                               /*RawSymOffset=*/0, Key, Disc);
+    AuthPtrStubSym =
+        TLOF.getAuthPtrSlotSymbol(TM, &MF->getMMI(), GASym, Key, Disc);
   }
 
 
@@ -2591,16 +2582,17 @@ void AArch64AsmPrinter::LowerMOVaddrPAC(const MachineInstr &MI) {
 }
 
 const MCExpr *
-AArch64AsmPrinter::lowerBlockAddressConstant(const BlockAddress *BA) {
+AArch64AsmPrinter::lowerBlockAddressConstant(const BlockAddress &BA) {
   const MCExpr *BAE = AsmPrinter::lowerBlockAddressConstant(BA);
-  if (!BA->getFunction()->hasFnAttribute("ptrauth-indirect-gotos"))
-    return BAE;
+  const Function &Fn = *BA.getFunction();
 
-  std::string StringDisc =
-    (BA->getFunction()->getName() + " blockaddress").str();
-  uint64_t Disc = getPointerAuthStableSipHash(StringDisc);
-  return AArch64AuthMCExpr::create(BAE, Disc, AArch64PACKey::IA,
-                                   /* HasAddressDiversity= */false, OutContext);
+  if (std::optional<uint16_t> BADisc =
+          STI->getPtrAuthBlockAddressDiscriminator(Fn))
+    return AArch64AuthMCExpr::create(BAE, *BADisc, AArch64PACKey::IA,
+                                     /* HasAddressDiversity= */ false,
+                                     OutContext);
+
+  return BAE;
 }
 
 // Simple pseudo-instructions have their lowering (with expansion to real
@@ -2936,21 +2928,6 @@ void AArch64AsmPrinter::emitInstruction(const MachineInstr *MI) {
   case AArch64::JumpTableDest8:
     LowerJumpTableDest(*OutStreamer, *MI);
     return;
-  case AArch64::JumpTableAnchor: {
-    int JTI = MI->getOperand(1).getIndex();
-    assert(!AArch64FI->getJumpTableEntryPCRelSymbol(JTI) &&
-           "unsupported compressed jump table");
-
-    auto Label = MF->getContext().createTempSymbol();
-    auto LabelE = MCSymbolRefExpr::create(Label, MF->getContext());
-    AArch64FI->setJumpTableEntryInfo(JTI, 4, Label);
-
-    OutStreamer->emitLabel(Label);
-    EmitToStreamer(*OutStreamer, MCInstBuilder(AArch64::ADR)
-                                     .addReg(MI->getOperand(0).getReg())
-                                     .addExpr(LabelE));
-    return;
-  }
 
   case AArch64::BR_JumpTable:
     LowerHardenedBRJumpTable(*MI);
