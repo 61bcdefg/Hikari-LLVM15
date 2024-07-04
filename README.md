@@ -1,3 +1,9 @@
+# Based on https://github.com/apple/llvm-project/tree/arm64e-upstream-next
+
+如果开启`-indibran-enc-jump-target`后遇到错误，在C/C++ Flags中添加`-fno-ptrauth-indirect-gotos`
+
+AntiClassDump存在问题
+
 # Apple's fork of llvm-project
 
 This is Apple's fork of llvm-project.  For more information on Apple's
