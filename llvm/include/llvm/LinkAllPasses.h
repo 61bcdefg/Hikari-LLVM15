@@ -44,6 +44,7 @@
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
 #include "llvm/Transforms/Vectorize/LoadStoreVectorizer.h"
+#include "llvm/Transforms/Obfuscation/Obfuscation.h"
 #include <cstdlib>
 
 namespace {
@@ -138,6 +139,7 @@ namespace {
       (void) llvm::createUnifyLoopExitsPass();
       (void) llvm::createFixIrreduciblePass();
       (void)llvm::createSelectOptimizePass();
+      (void)llvm::createObfuscationLegacyPass();
 
       (void)new llvm::ScalarEvolutionWrapperPass();
       llvm::Function::Create(nullptr, llvm::GlobalValue::ExternalLinkage)->viewCFGOnly();

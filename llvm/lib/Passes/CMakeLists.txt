@@ -32,4 +32,5 @@ add_llvm_component_library(LLVMPasses
   TransformUtils
   Vectorize
   Instrumentation
+  Obfuscation
   )
