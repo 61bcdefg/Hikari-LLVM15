@@ -1348,7 +1348,8 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
       PGOOpt->Action == PGOOptions::SampleUse)
     MPM.addPass(PseudoProbeUpdatePass());
 
-  MPM.addPass(ObfuscationPass());
+  if (!LTOPreLink)
+    MPM.addPass(ObfuscationPass());
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -1410,8 +1411,6 @@ PassBuilder::buildThinLTOPreLinkDefaultPipeline(OptimizationLevel Level) {
   for (auto &C : OptimizerLastEPCallbacks)
     C(MPM, Level);
 
-  MPM.addPass(ObfuscationPass());
-
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
 
@@ -1456,6 +1455,8 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
     // globals in the object file.
     MPM.addPass(EliminateAvailableExternallyPass());
     MPM.addPass(GlobalDCEPass());
+
+    MPM.addPass(ObfuscationPass());
     return MPM;
   }
 
@@ -1513,6 +1514,8 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
 
     for (auto &C : FullLinkTimeOptimizationLastEPCallbacks)
       C(MPM, Level);
+
+    MPM.addPass(ObfuscationPass());
 
     // Emit annotation remarks.
     addAnnotationRemarksPass(MPM);
@@ -1595,6 +1598,8 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
 
     for (auto &C : FullLinkTimeOptimizationLastEPCallbacks)
       C(MPM, Level);
+    
+    MPM.addPass(ObfuscationPass());
 
     // Emit annotation remarks.
     addAnnotationRemarksPass(MPM);
@@ -1775,6 +1780,8 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
 
   for (auto &C : FullLinkTimeOptimizationLastEPCallbacks)
     C(MPM, Level);
+  
+  MPM.addPass(ObfuscationPass());
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -1883,7 +1890,8 @@ ModulePassManager PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
   for (auto &C : OptimizerLastEPCallbacks)
     C(MPM, Level);
 
-  MPM.addPass(ObfuscationPass());
+  if (!LTOPreLink)
+    MPM.addPass(ObfuscationPass());
 
   if (LTOPreLink)
     addRequiredLTOPreLinkPasses(MPM);
