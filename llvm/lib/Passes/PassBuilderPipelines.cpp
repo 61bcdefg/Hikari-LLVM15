@@ -135,6 +135,7 @@
 #include "llvm/Transforms/Vectorize/LoopVectorize.h"
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
+#include "llvm/Transforms/Obfuscation/Obfuscation.h"
 
 using namespace llvm;
 
@@ -1521,6 +1522,9 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
   if (PGOOpt && PGOOpt->PseudoProbeForProfiling &&
       PGOOpt->Action == PGOOptions::SampleUse)
     MPM.addPass(PseudoProbeUpdatePass());
+  
+  if (!LTOPreLink)
+    MPM.addPass(ObfuscationPass());
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -1644,6 +1648,8 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
     // globals in the object file.
     MPM.addPass(EliminateAvailableExternallyPass());
     MPM.addPass(GlobalDCEPass());
+
+    MPM.addPass(ObfuscationPass());
     return MPM;
   }
 
@@ -1654,6 +1660,8 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
   // Now add the optimization pipeline.
   MPM.addPass(buildModuleOptimizationPipeline(
       Level, ThinOrFullLTOPhase::ThinLTOPostLink));
+  
+  MPM.addPass(ObfuscationPass());
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -1689,6 +1697,8 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
     MPM.addPass(LowerTypeTestsPass(nullptr, nullptr, true));
 
     invokeFullLinkTimeOptimizationLastEPCallbacks(MPM, Level);
+
+    MPM.addPass(ObfuscationPass());
 
     // Emit annotation remarks.
     addAnnotationRemarksPass(MPM);
@@ -1767,6 +1777,8 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
     MPM.addPass(LowerTypeTestsPass(nullptr, nullptr, true));
 
     invokeFullLinkTimeOptimizationLastEPCallbacks(MPM, Level);
+
+    MPM.addPass(ObfuscationPass());
 
     // Emit annotation remarks.
     addAnnotationRemarksPass(MPM);
@@ -1980,6 +1992,8 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
 
   invokeFullLinkTimeOptimizationLastEPCallbacks(MPM, Level);
 
+  MPM.addPass(ObfuscationPass());
+
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
 
@@ -2077,6 +2091,9 @@ ModulePassManager PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
   MPM.addPass(CoroConditionalWrapper(std::move(CoroPM)));
 
   invokeOptimizerLastEPCallbacks(MPM, Level);
+
+  if (!LTOPreLink)
+    MPM.addPass(ObfuscationPass());
 
   if (LTOPreLink)
     addRequiredLTOPreLinkPasses(MPM);
