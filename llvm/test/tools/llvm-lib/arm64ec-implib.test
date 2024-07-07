@@ -1,0 +1,110 @@
+Test creating ARM64EC importlib.
+
+RUN: split-file %s %t.dir && cd %t.dir
+RUN: llvm-lib -machine:arm64ec -def:test.def -out:test.lib
+
+RUN: llvm-nm --print-armap test.lib | FileCheck -check-prefix=ARMAP %s
+
+ARMAP:      Archive map
+ARMAP-NEXT: __IMPORT_DESCRIPTOR_test in test.dll
+ARMAP-NEXT: __NULL_IMPORT_DESCRIPTOR in test.dll
+ARMAP-NEXT: test_NULL_THUNK_DATA in test.dll
+ARMAP-EMPTY:
+ARMAP-NEXT: Archive EC map
+ARMAP-NEXT: #expname in test.dll
+ARMAP-NEXT: #funcexp in test.dll
+ARMAP-NEXT: #mangledfunc in test.dll
+ARMAP-NEXT: ?test_cpp_func@@$$hYAHPEAX@Z in test.dll
+ARMAP-NEXT: ?test_cpp_func@@YAHPEAX@Z in test.dll
+ARMAP-NEXT: __IMPORT_DESCRIPTOR_test in test.dll
+ARMAP-NEXT: __NULL_IMPORT_DESCRIPTOR in test.dll
+ARMAP-NEXT: __imp_?test_cpp_func@@YAHPEAX@Z in test.dll
+ARMAP-NEXT: __imp_aux_?test_cpp_func@@YAHPEAX@Z in test.dll
+ARMAP-NEXT: __imp_aux_expname in test.dll
+ARMAP-NEXT: __imp_aux_funcexp in test.dll
+ARMAP-NEXT: __imp_aux_mangledfunc in test.dll
+ARMAP-NEXT: __imp_dataexp in test.dll
+ARMAP-NEXT: __imp_expname in test.dll
+ARMAP-NEXT: __imp_funcexp in test.dll
+ARMAP-NEXT: __imp_mangledfunc in test.dll
+ARMAP-NEXT: expname in test.dll
+ARMAP-NEXT: funcexp in test.dll
+ARMAP-NEXT: mangledfunc in test.dll
+ARMAP-NEXT: test_NULL_THUNK_DATA in test.dll
+
+RUN: llvm-readobj test.lib | FileCheck -check-prefix=READOBJ %s
+
+READOBJ:      File: test.lib(test.dll)
+READOBJ-NEXT: Format: COFF-ARM64{{$}}
+READOBJ-NEXT: Arch: aarch64
+READOBJ-NEXT: AddressSize: 64bit
+READOBJ-EMPTY:
+READOBJ-NEXT: File: test.lib(test.dll)
+READOBJ-NEXT: Format: COFF-ARM64{{$}}
+READOBJ-NEXT: Arch: aarch64
+READOBJ-NEXT: AddressSize: 64bit
+READOBJ-EMPTY:
+READOBJ-NEXT: File: test.lib(test.dll)
+READOBJ-NEXT: Format: COFF-ARM64{{$}}
+READOBJ-NEXT: Arch: aarch64
+READOBJ-NEXT: AddressSize: 64bit
+READOBJ-EMPTY:
+READOBJ-NEXT: File: test.dll
+READOBJ-NEXT: Format: COFF-import-file-ARM64EC
+READOBJ-NEXT: Type: code
+READOBJ-NEXT: Name type: export as
+READOBJ-NEXT: Export name: funcexp
+READOBJ-NEXT: Symbol: __imp_funcexp
+READOBJ-NEXT: Symbol: funcexp
+READOBJ-NEXT: Symbol: __imp_aux_funcexp
+READOBJ-NEXT: Symbol: #funcexp
+READOBJ-EMPTY:
+READOBJ-NEXT: File: test.dll
+READOBJ-NEXT: Format: COFF-import-file-ARM64EC
+READOBJ-NEXT: Type: code
+READOBJ-NEXT: Name type: export as
+READOBJ-NEXT: Export name: mangledfunc
+READOBJ-NEXT: Symbol: __imp_mangledfunc
+READOBJ-NEXT: Symbol: mangledfunc
+READOBJ-NEXT: Symbol: __imp_aux_mangledfunc
+READOBJ-NEXT: Symbol: #mangledfunc
+READOBJ-EMPTY:
+READOBJ-NEXT: File: test.dll
+READOBJ-NEXT: Format: COFF-import-file-ARM64EC
+READOBJ-NEXT: Type: code
+READOBJ-NEXT: Name type: export as
+READOBJ-NEXT: Export name: ?test_cpp_func@@YAHPEAX@Z
+READOBJ-NEXT: Symbol: __imp_?test_cpp_func@@YAHPEAX@Z
+READOBJ-NEXT: Symbol: ?test_cpp_func@@YAHPEAX@Z
+READOBJ-NEXT: Symbol: __imp_aux_?test_cpp_func@@YAHPEAX@Z
+READOBJ-NEXT: Symbol: ?test_cpp_func@@$$hYAHPEAX@Z
+READOBJ-EMPTY:
+READOBJ-NEXT: File: test.dll
+READOBJ-NEXT: Format: COFF-import-file-ARM64EC
+READOBJ-NEXT: Type: code
+READOBJ-NEXT: Name type: export as
+READOBJ-NEXT: Export name: expname
+READOBJ-NEXT: Symbol: __imp_expname
+READOBJ-NEXT: Symbol: expname
+READOBJ-NEXT: Symbol: __imp_aux_expname
+READOBJ-NEXT: Symbol: #expname
+READOBJ-EMPTY:
+READOBJ-NEXT: File: test.dll
+READOBJ-NEXT: Format: COFF-import-file-ARM64EC
+READOBJ-NEXT: Type: data
+READOBJ-NEXT: Name type: name
+READOBJ-NEXT: Export name: dataexp
+READOBJ-NEXT: Symbol: __imp_dataexp
+
+Creating a new lib containing the existing lib:
+RUN: llvm-lib -machine:arm64ec test.lib -out:test2.lib
+RUN: llvm-nm --print-armap test2.lib | FileCheck -check-prefix=ARMAP %s
+
+#--- test.def
+LIBRARY test.dll
+EXPORTS
+    funcexp
+    #mangledfunc
+    ?test_cpp_func@@YAHPEAX@Z
+    expname=impname
+    dataexp DATA
