@@ -110,6 +110,31 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: llvm-swift-5.10-RELEASE
 
+      - name: Checkout apple-arm64e-upstream-next
+        uses: actions/checkout@v4.1.6
+        with:
+          ref: "apple-arm64e-upstream-next"
+          submodules: "recursive"
+  
+      - name: Update submodule apple-arm64e-upstream-next
+        id: apple-arm64e
+        run: |
+          git submodule update --remote
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Some files have been modified"
+            echo "HAS_CHANGES=1" >> $GITHUB_OUTPUT
+            git add .
+            git commit -m "update submodule"
+          fi
+  
+      - name: Push changes apple-arm64e-upstream-next
+        if: ${{ steps.apple-arm64e.outputs.HAS_CHANGES == '1' }}
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: apple-arm64e-upstream-next
+  
+
       - name: Checkout llvm-15.0.2rel
         uses: actions/checkout@v4.1.6
         with:
@@ -181,3 +206,27 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: llvm-17.0.6rel
+
+      - name: Checkout llvm-18.1.8rel
+        uses: actions/checkout@v4.1.6
+        with:
+          ref: "llvm-18.1.8rel"
+          submodules: "recursive"
+  
+      - name: Update submodule llvm-18.1.8rel
+        id: llvm1818
+        run: |
+          git submodule update --remote
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Some files have been modified"
+            echo "HAS_CHANGES=1" >> $GITHUB_OUTPUT
+            git add .
+            git commit -m "update submodule"
+          fi
+  
+      - name: Push changes llvm-18.1.8rel
+        if: ${{ steps.llvm1818.outputs.HAS_CHANGES == '1' }}
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: llvm-18.1.8rel
