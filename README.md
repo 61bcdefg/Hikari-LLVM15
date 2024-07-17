@@ -1,14 +1,16 @@
 # Hikari-LLVM15
  A fork of HikariObfuscator [WIP]
+
+[English](README_en.md) | 中文
  
  ## 原项目链接
  [https://github.com/HikariObfuscator/Hikari](https://github.com/HikariObfuscator/Hikari)
+ 
+  ## 构建
+ 
+ [https://llvm.org/docs/GettingStarted.html#getting-the-source-code-and-building-llvm](https://llvm.org/docs/GettingStarted.html#getting-the-source-code-and-building-llvm)
 
-## 使用
-
-下载后构建
-
-MacOS可直接从[actions](https://github.com/61bcdefg/Hikari-LLVM15/actions)中下载已构建完成的Xcode Toolchain
+如果你使用MacOS, 可直接从[actions](https://github.com/61bcdefg/Hikari-LLVM15/actions)中下载
 
 ### Swift混淆支持
 
@@ -19,7 +21,7 @@ MacOS可直接从[actions](https://github.com/61bcdefg/Hikari-LLVM15/actions)中
 需要注意的是添加混淆参数的位置是在**Swift Compiler - Other Flags**中的**Other Swift Flags**，并且是在前面加-Xllvm，而不是-mllvm。
 关闭优化的地方在**Swift Compiler - Code Generation**中的**Optimization Level**，设置为 *No Optimization [-Onone]* 。由于swift语言的特性，如果混淆swift不关闭优化，字符串混淆可能会失效
 
-每次修改Other Swift Flags后编译前需要先Shift+Command+K(Clean Build Folder)，因为Swift并不会像OC一样检测到项目cflag的修改就会重新编译
+每次修改**Other Swift Flags**后编译前需要先Shift+Command+K(Clean Build Folder)，因为Swift并不会像OC一样检测到项目cflag的修改就会重新编译
 
 ### PreCompiled IR
 
@@ -35,7 +37,7 @@ arm64e支持
 
 跳过包含MustTailCall的基本块以避免错误
 
-跳过presplit coroutine和包含CoroBeginInst的基本块以支持swift、
+跳过presplit coroutine和包含CoroBeginInst的基本块以支持swift
 
 修复了消失的不透明谓词
 
@@ -62,6 +64,7 @@ arm64e支持
 #### StringEncryption
 
 支持加密在结构体和数组中的字符串
+
 支持加密Rust字符串
 
 arm64e支持
@@ -200,31 +203,31 @@ ConstantEncryption在每个函数混淆的次数。默认为1
 
 ### Functions Annotations
 
-#### Supported Options
-##### C++/C functions
-For example, if you have multiple functions, but you only want to obfuscate the function int foo() with indibran-use-stack enabled, you can declare it like this:
+#### 支持的选项
+##### C++/C 函数
+例如你有多个函数，你只想在函数`int foo()` 开启`indibran-use-stack` 
 ```
 int foo() __attribute((__annotate__(("indibran_use_stack"))));
 int foo() {
    return 2;
 }
 ```
-If you only want to obfuscate the function int foo() without using indibran-use-stack, you can declare it like this:
+例如你想在函数`int foo()` 关闭`indibran-use-stack` 
 ```
 int foo() __attribute((__annotate__(("noindibran_use_stack"))));
 int foo() {
    return 2;
 }
 ```
-If you only wanted the BogusControlFlow of function int foo() to be obfuscated with a probability of 100, you can declare it like this:
+例如对于函数`int foo()`，你想将`bcf_prob`设置为100
 ```
 int foo() __attribute((__annotate__(("bcf_prob=100"))));
 int foo() {
    return 2;
 }
 ```
-##### ObjC Methods
-For example you want to pass indibran-use-stack like the C/C++ example:
+##### ObjC 方法
+例如你想像C/C++例子中那样开启`indibran-use-stack` :
 ```
 #ifdef __cplusplus
 extern "C" {
@@ -235,13 +238,13 @@ void hikari_indibran_use_stack(void);
 #endif
 
 @implementation foo2 : NSObject
-+(void)foo{
++ (void)foo {
   hikari_indibran_use_stack();
   NSLog(@"FOOOO2");
 }
 @end
 ```
-If you only wanted the BogusControlFlow of function int foo() to be obfuscated with a probability of 100:
+例如对于方法`+ (void)foo`，你想将`bcf_prob`设置为100：
 ```
 #ifdef __cplusplus
 extern "C" {
@@ -252,13 +255,13 @@ void hikari_bcf_prob(uint32_t);
 #endif
 
 @implementation foo2 : NSObject
-+(void)foo{
++ (void)foo {
   hikari_bcf_prob(100);
   NSLog(@"FOOOO2");
 }
 @end
 ```
-##### Options
+##### 选项
 -   `ah_inline` 
 -   `ah_objcruntime`
 -   `ah_antirebind`  
@@ -283,13 +286,13 @@ void hikari_bcf_prob(uint32_t);
 -   `sub_loop`
 -   `sub_prob`
 
-#### New Supported Flags
+#### 新支持的标志
 
 -   `adb` Anti Debugging
 -   `antihook` Anti Hooking
 -   `constenc` Constant Encryption
 
-## License
+## 许可
 
-See [https://github.com/HikariObfuscator/Hikari#license](https://github.com/HikariObfuscator/Hikari#license)
+[https://github.com/HikariObfuscator/Hikari#license](https://github.com/HikariObfuscator/Hikari#license)
 
