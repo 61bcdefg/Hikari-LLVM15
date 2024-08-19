@@ -29,7 +29,7 @@ PreCompiled IR是指自定义的LLVM Bitcode文件，可以通过在存在回调
 
 ###  一些修改
 
-#### AntiClassDump
+#### AntiClassDump (该功能存在设计缺陷，开启后程序可能崩溃，不建议使用)
 
 arm64e支持
 
@@ -89,9 +89,9 @@ arm64e支持
 
 重命名在IDA中显示的方法函数名称(修改为ACDMethodIMP)，不是修改方法名。默认关闭
 
-#### AntiHooking
+#### AntiHooking (不建议使用)
 
-整体开启这个功能会使生成的二进制文件大小急剧膨胀，建议只在部分函数开启这个功能(toObfuscate)
+整体开启这个功能会使生成的二进制文件大小急剧膨胀
 
 支持检测Objective-C运行时Hook。如果检测到就会调用AHCallBack函数(从PreCompiled IR获取)，如果不存在AHCallBack，就会退出程序。
 
