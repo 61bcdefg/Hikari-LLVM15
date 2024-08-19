@@ -1,9 +1,9 @@
-name: Build LLVM17 Toolchain for Intel Mac
+name: Build LLVM18 Toolchain for Intel Mac
 
 on:
   workflow_dispatch:
   push:
-    branches: [llvm-17.0.6rel]
+    branches: [llvm-18.1.8rel]
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4.1.6
         with:
-          ref: "llvm-17.0.6rel"
+          ref: "llvm-18.1.8rel"
           submodules: "recursive"
 
       - name: Setup python
@@ -36,10 +36,10 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64" -DLLVM_ENABLE_ZSTD=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 -DLLVM_CREATE_XCODE_TOOLCHAIN=ON  -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_UTILS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_BUILD_TOOLS=OFF -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON -DCMAKE_INSTALL_PREFIX="./install" ../llvm
           ninja
           ninja install-xcode-toolchain
-          tar -czvf Hikari_LLVM17.0.6_Intel-Mac.tar.gz ./install/Toolchains/Hikari_LLVM17.0.6.xctoolchain
+          tar -czvf Hikari_LLVM18.1.8_Intel-Mac.tar.gz ./install/Toolchains/Hikari_LLVM18.1.8.xctoolchain
   
       - name: Upload Artifact
         uses: actions/upload-artifact@v4.3.3
         with:
-          name: Hikari_LLVM17.0.6_Intel-Mac.tar.gz
-          path: build/Hikari_LLVM17.0.6_Intel-Mac.tar.gz
+          name: Hikari_LLVM18.1.8_Intel-Mac.tar.gz
+          path: build/Hikari_LLVM18.1.8_Intel-Mac.tar.gz
