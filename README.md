@@ -1,3 +1,4 @@
+# 由于缺乏兴趣和精力，停止维护
 # Hikari-LLVM15
  A fork of HikariObfuscator [WIP]
 
